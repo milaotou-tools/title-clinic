@@ -1,0 +1,14 @@
+{
+  "name": "paper-title-clinic-mvp",
+  "version": "0.1.0",
+  "private": true,
+  "description": "中文教育/社科论文投稿前标题门诊 MVP",
+  "scripts": {
+    "start": "node server.js",
+    "extract:expert": "python scripts/build_expert_methodology.py",
+    "extract:word": "python scripts/extract_word_sources.py"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

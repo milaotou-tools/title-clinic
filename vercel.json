@@ -1,0 +1,14 @@
+{
+  "version": 2,
+  "rewrites": [
+    {
+      "source": "/",
+      "destination": "/title-clinic-mvp.html"
+    }
+  ],
+  "functions": {
+    "api/optimize-title.js": {
+      "maxDuration": 60
+    }
+  }
+}

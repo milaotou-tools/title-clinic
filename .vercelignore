@@ -1,0 +1,10 @@
+.env
+.env.local
+.git
+.vercel
+node_modules
+*.log
+*.docx
+expert-sources
+scripts
+EXPERT_EXTRACTION.md

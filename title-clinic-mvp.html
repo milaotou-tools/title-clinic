@@ -1,0 +1,1391 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>教育/社科论文标题门诊</title>
+  <style>
+    :root {
+      --ink: #171725;
+      --muted: #6b6f7a;
+      --line: #dde2ea;
+      --paper: #f7f8fb;
+      --panel: #ffffff;
+      --accent: #273469;
+      --accent-2: #2d6a4f;
+      --red: #c9191f;
+      --orange: #9a5b16;
+      --shadow: 0 18px 42px rgba(29, 33, 48, .08);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--paper);
+      font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", Arial, sans-serif;
+      letter-spacing: 0;
+    }
+
+    button,
+    input,
+    textarea {
+      font: inherit;
+    }
+
+    .shell {
+      width: min(1420px, calc(100% - 36px));
+      margin: 0 auto;
+      padding: 22px 0 46px;
+    }
+
+    .top-card,
+    .compare-card,
+    .bottom-card {
+      border: 1px solid var(--line);
+      background: var(--panel);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+
+    .top-card {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: grid;
+      grid-template-columns: minmax(260px, .7fr) minmax(360px, 1fr) auto;
+      gap: 18px;
+      align-items: center;
+      padding: 16px;
+    }
+
+    .brand {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      min-width: 0;
+    }
+
+    .mark {
+      width: 42px;
+      height: 42px;
+      display: grid;
+      place-items: center;
+      border-radius: 8px;
+      color: #fff;
+      background: var(--accent);
+      flex: 0 0 auto;
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: 20px;
+      line-height: 1.2;
+      font-weight: 800;
+    }
+
+    .brand p {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .upload-zone {
+      min-height: 74px;
+      border: 1px dashed #aeb7c5;
+      border-radius: 8px;
+      background: #fbfcff;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: center;
+      padding: 12px;
+    }
+
+    .upload-zone.drag-over {
+      border-color: var(--accent);
+      background: #eef3ff;
+      box-shadow: 0 0 0 3px rgba(39, 52, 105, .10) inset;
+    }
+
+    .upload-text strong {
+      display: block;
+      margin-bottom: 5px;
+      font-size: 15px;
+    }
+
+    .upload-zone .drop-hint {
+      margin-top: 2px;
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .upload-text span,
+    .status,
+    .small-note {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    .progress-shell {
+      margin-top: 10px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .progress-track {
+      position: relative;
+      height: 10px;
+      border-radius: 999px;
+      overflow: hidden;
+      background: rgba(148, 163, 184, 0.18);
+      border: 1px solid rgba(148, 163, 184, 0.2);
+    }
+
+    .progress-bar {
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: 0%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, #2563eb, #0f766e);
+      transition: width 220ms ease;
+    }
+
+    .progress-meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .progress-meta strong {
+      color: var(--ink);
+      font-weight: 600;
+    }
+
+    input[type="file"] {
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+      position: absolute;
+      pointer-events: none;
+    }
+
+    .btn {
+      min-height: 40px;
+      border: 1px solid transparent;
+      border-radius: 8px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 9px 13px;
+      color: #fff;
+      background: var(--accent);
+      font-weight: 760;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .btn:hover { background: #1d2855; }
+    .btn:active { transform: translateY(1px); }
+
+    .btn.secondary {
+      color: var(--accent);
+      background: #fff;
+      border-color: var(--line);
+    }
+
+    .btn.secondary:hover {
+      background: #f1f3f8;
+    }
+
+    .btn.ghost {
+      color: var(--muted);
+      background: transparent;
+      border-color: transparent;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: flex-end;
+      align-items: center;
+    }
+
+    .connection-pill {
+      min-height: 34px;
+      padding: 7px 11px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: #fff;
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .manual-panel {
+      margin-top: 14px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      padding: 14px;
+      display: grid;
+      grid-template-columns: minmax(240px, .55fr) minmax(280px, 1fr) minmax(280px, 1fr);
+      gap: 12px;
+    }
+
+    label {
+      display: grid;
+      gap: 7px;
+      color: #252a38;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    input[type="text"],
+    textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--ink);
+      outline: none;
+      padding: 10px 11px;
+    }
+
+    textarea {
+      min-height: 94px;
+      resize: vertical;
+      line-height: 1.6;
+    }
+
+    input[type="text"]:focus,
+    textarea:focus {
+      border-color: rgba(39, 52, 105, .62);
+      box-shadow: 0 0 0 3px rgba(39, 52, 105, .10);
+    }
+
+    .compare-card {
+      margin-top: 18px;
+      padding: 16px;
+    }
+
+    .compare-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 12px;
+    }
+
+    .compare-head h2 {
+      margin: 0;
+      font-size: 18px;
+      line-height: 1.3;
+    }
+
+    .legend {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: 5px;
+      vertical-align: -1px;
+    }
+
+    .dot.changed { background: var(--red); }
+    .dot.level1 { background: var(--accent); }
+    .dot.level2 { background: var(--accent-2); }
+
+    .compare-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 14px;
+      align-items: stretch;
+    }
+
+    .outline-pane {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+      background: #fff;
+      min-height: 520px;
+      display: grid;
+      grid-template-rows: auto 1fr;
+    }
+
+    .pane-title {
+      min-height: 42px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line);
+      background: #f7f9fc;
+      color: #272c3a;
+      font-weight: 800;
+    }
+
+    .pane-title span {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .outline-list {
+      padding: 18px 22px 24px;
+      overflow: auto;
+      max-height: 68vh;
+    }
+
+    .outline-item {
+      display: grid;
+      grid-template-columns: 42px minmax(0, 1fr);
+      gap: 8px;
+      align-items: baseline;
+      margin: 0 0 7px;
+      line-height: 1.32;
+    }
+
+    .outline-index {
+      color: #8a8f9a;
+      font-size: 12px;
+      font-weight: 700;
+      text-align: right;
+      user-select: none;
+    }
+
+    .outline-text {
+      min-width: 0;
+      word-break: break-word;
+    }
+
+    .level-0 {
+      grid-template-columns: 1fr;
+      margin-bottom: 15px;
+    }
+
+    .level-0 .outline-index {
+      display: none;
+    }
+
+    .level-0 .outline-text {
+      color: var(--accent);
+      font-size: 28px;
+      line-height: 1.16;
+      font-weight: 900;
+      white-space: normal;
+      word-break: keep-all;
+    }
+
+    .level-1 .outline-text {
+      color: #111827;
+      font-size: 18px;
+      font-weight: 860;
+    }
+
+    .level-2 {
+      padding-left: 18px;
+    }
+
+    .level-2 .outline-text {
+      color: #1f4f43;
+      font-size: 15px;
+      font-weight: 760;
+    }
+
+    .level-3 {
+      padding-left: 38px;
+    }
+
+    .level-3 .outline-text {
+      color: #333947;
+      font-size: 13px;
+      font-weight: 620;
+    }
+
+    .level-4 {
+      padding-left: 58px;
+    }
+
+    .level-4 .outline-text {
+      color: #555c69;
+      font-size: 12px;
+      font-weight: 520;
+    }
+
+    .changed-text {
+      color: var(--red);
+      font-weight: 900;
+    }
+
+    .empty-state {
+      display: grid;
+      place-items: center;
+      min-height: 460px;
+      color: var(--muted);
+      text-align: center;
+      line-height: 1.8;
+      padding: 40px;
+      border: 1px dashed var(--line);
+      border-radius: 8px;
+      background: #fbfcff;
+    }
+
+    .bottom-card {
+      margin-top: 18px;
+      padding: 16px;
+      display: grid;
+      grid-template-columns: minmax(260px, .7fr) minmax(0, 1fr);
+      gap: 14px;
+      align-items: start;
+    }
+
+    .diagnosis,
+    .candidate-list {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+      background: #fff;
+    }
+
+    .diagnosis h3,
+    .candidate-list h3 {
+      margin: 0 0 10px;
+      font-size: 15px;
+    }
+
+    .diagnosis ol {
+      margin: 0;
+      padding-left: 22px;
+      display: grid;
+      gap: 7px;
+      color: #3a4050;
+      line-height: 1.6;
+      font-size: 13px;
+    }
+
+    .candidate {
+      border-top: 1px solid var(--line);
+      padding: 11px 0 0;
+      margin-top: 11px;
+    }
+
+    .candidate:first-of-type {
+      border-top: 0;
+      padding-top: 0;
+      margin-top: 0;
+    }
+
+    .candidate b {
+      color: var(--accent);
+      display: block;
+      margin-bottom: 4px;
+      font-size: 13px;
+    }
+
+    .candidate p {
+      margin: 0;
+      line-height: 1.55;
+      font-size: 13px;
+      color: #3f4655;
+    }
+
+    .candidate-title {
+      font-size: 16px !important;
+      color: #111827 !important;
+      font-weight: 800;
+      margin-bottom: 5px !important;
+    }
+
+    .hidden { display: none !important; }
+
+    @media (max-width: 980px) {
+      .top-card,
+      .manual-panel,
+      .compare-grid,
+      .bottom-card {
+        grid-template-columns: 1fr;
+      }
+
+      .actions {
+        justify-content: flex-start;
+      }
+
+      .top-card {
+        position: static;
+      }
+
+      .outline-list {
+        max-height: none;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .shell {
+        width: min(100% - 24px, 1420px);
+      }
+
+      .upload-zone {
+        grid-template-columns: 1fr;
+      }
+
+      .btn {
+        width: 100%;
+      }
+
+      .level-0 .outline-text {
+        font-size: 24px;
+      }
+
+      .outline-list {
+        padding: 14px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="top-card" aria-label="上传文件">
+      <div class="brand">
+        <div class="mark" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M4 19.5V5a2 2 0 0 1 2-2h10l4 4v12.5a1.5 1.5 0 0 1-1.5 1.5H6A2 2 0 0 1 4 19.5Z" />
+            <path d="M14 3v5h5" />
+            <path d="M8 12h8" />
+            <path d="M8 16h6" />
+          </svg>
+        </div>
+        <div>
+          <h1>教育/社科论文标题门诊</h1>
+          <p>上传 Word 后提取标题层级，展示改前/改后对比。</p>
+        </div>
+      </div>
+
+      <div class="upload-zone">
+        <div class="upload-text">
+          <strong id="fileName">默认上传 .docx 文件</strong>
+          <span id="fileStatus">系统会先抽取大标题和各级小标题，再让 AI 按专家规则生成新版标题结构。</span>
+          <div class="drop-hint">也可以直接把 Word 拖到这里</div>
+        </div>
+        <div>
+          <input id="docxFile" type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" />
+          <label class="btn secondary" for="docxFile">选择 Word</label>
+        </div>
+      </div>
+
+      <div class="actions">
+        <span class="connection-pill" id="apiPill">API：检查中</span>
+        <button class="btn" id="generateBtn" type="button">开始改标题</button>
+        <button class="btn secondary" id="manualToggle" type="button" aria-expanded="false">手动粘贴</button>
+        <button class="btn ghost" id="sampleBtn" type="button">示例</button>
+        <button class="btn ghost" id="clearBtn" type="button">清空</button>
+      </div>
+    </section>
+
+    <section class="manual-panel hidden" id="manualPanel" aria-label="手动输入">
+      <label>
+        原标题
+        <input id="paperTitle" type="text" placeholder="例如：从“完美学霸”到“问题学伴”：AI赋能语文课堂的路径与思考" />
+      </label>
+      <label>
+        摘要或正文片段
+        <textarea id="abstractText" placeholder="可以粘贴摘要，也可以粘贴论文前几段。"></textarea>
+      </label>
+      <label>
+        引言或目录
+        <textarea id="introText" placeholder="建议粘贴目录或各级标题，系统会尽量提取层级。"></textarea>
+      </label>
+    </section>
+
+    <section class="compare-card">
+      <div class="compare-head">
+        <div>
+          <h2>改前 / 改后标题层级对比</h2>
+          <div class="status" id="status">等待上传 Word。</div>
+          <div class="progress-shell" id="progressShell" hidden>
+            <div class="progress-track" aria-hidden="true">
+              <div class="progress-bar" id="progressBar"></div>
+            </div>
+            <div class="progress-meta">
+              <strong id="progressLabel">等待开始</strong>
+              <span id="progressPercent">0%</span>
+            </div>
+          </div>
+        </div>
+        <div class="legend">
+          <span><i class="dot level1"></i>大标题</span>
+          <span><i class="dot level2"></i>二级标题</span>
+          <span><i class="dot changed"></i>新版红字为改动</span>
+        </div>
+      </div>
+
+      <div id="emptyState" class="empty-state">
+        <div>
+          <strong>上传论文后，这里会显示左右两栏。</strong><br />
+          左边是原版各级标题，右边是新版标题结构；新版里发生变化的字会标红。
+        </div>
+      </div>
+
+      <div id="compareGrid" class="compare-grid hidden">
+        <section class="outline-pane">
+          <div class="pane-title">原版 <span id="oldCount">0 个标题</span></div>
+          <div class="outline-list" id="oldOutline"></div>
+        </section>
+        <section class="outline-pane">
+          <div class="pane-title">新版 <span id="newCount">0 个标题</span></div>
+          <div class="outline-list" id="newOutline"></div>
+        </section>
+      </div>
+    </section>
+
+    <section class="bottom-card">
+      <section class="diagnosis">
+        <h3>原题诊断</h3>
+        <ol id="diagnosisList">
+          <li>上传后显示最多 3 条关键问题。</li>
+        </ol>
+      </section>
+      <section class="candidate-list">
+        <h3>候选标题</h3>
+        <div id="candidateList">
+          <p class="small-note">这里保留推荐标题和 3 个备选标题，便于后续挑选。</p>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <script>
+    const el = {
+      file: document.getElementById("docxFile"),
+      fileName: document.getElementById("fileName"),
+      fileStatus: document.getElementById("fileStatus"),
+      uploadZone: document.querySelector(".upload-zone"),
+      generate: document.getElementById("generateBtn"),
+      manualToggle: document.getElementById("manualToggle"),
+      manualPanel: document.getElementById("manualPanel"),
+      sample: document.getElementById("sampleBtn"),
+      clear: document.getElementById("clearBtn"),
+      apiPill: document.getElementById("apiPill"),
+      progressShell: document.getElementById("progressShell"),
+      progressBar: document.getElementById("progressBar"),
+      progressLabel: document.getElementById("progressLabel"),
+      progressPercent: document.getElementById("progressPercent"),
+      title: document.getElementById("paperTitle"),
+      abstract: document.getElementById("abstractText"),
+      intro: document.getElementById("introText"),
+      status: document.getElementById("status"),
+      empty: document.getElementById("emptyState"),
+      compareGrid: document.getElementById("compareGrid"),
+      oldOutline: document.getElementById("oldOutline"),
+      newOutline: document.getElementById("newOutline"),
+      oldCount: document.getElementById("oldCount"),
+      newCount: document.getElementById("newCount"),
+      diagnosisList: document.getElementById("diagnosisList"),
+      candidateList: document.getElementById("candidateList")
+    };
+
+    const sampleText = `从“完美学霸”到“问题学伴”：AI赋能语文课堂的路径与思考
+一、认知破局：从AI崇拜到工具觉醒
+（一）政策驱动：人工智能赋能教育的新基建
+（二）三重断裂：语文课堂中的“三重断裂”
+第一，表面理解与文本深究的断裂
+第二，文言积累与迁移能力的断裂
+第三，表达欲望与表达能力的断裂
+（三）理论奠基：建构主义视域下的AI教学定位
+二、实践建构：四阶转化的课堂探索
+（一）问题驱动：从“教什么”到“AI能帮什么”
+（二）冲突生成：利用AI的“不完美”制造认知冲突
+1．画不准的AI：深读《木兰诗》
+2．译不准的AI：批判《春望》翻译
+3．会变形的AI：活化《孙权劝学》字词
+4．会改作文的AI：学生拒绝，守护“自己的话”
+（三）协同探究：从“人机对话”到“人人对话”
+（四）反思重构：从“任务完成”到“素养生长”
+三、边界澄明：AI赋能语文的能力与意义
+（一）AI能做什么、不能做什么：能力边界的再审视
+（二）赋能含义的再思考：谁赋能谁？
+四、价值回归：AI时代语文教育的本质坚守`;
+
+    let uploadedFullText = "";
+    let originalOutline = [];
+    const API_BASE = location.protocol === "file:" ? "http://localhost:3000" : "";
+
+    el.file.addEventListener("change", handleFileChange);
+    el.uploadZone.addEventListener("dragenter", handleDragEnter);
+    el.uploadZone.addEventListener("dragover", handleDragOver);
+    el.uploadZone.addEventListener("dragleave", handleDragLeave);
+    el.uploadZone.addEventListener("drop", handleDrop);
+    el.generate.addEventListener("click", generate);
+    el.manualToggle.addEventListener("click", toggleManual);
+    el.sample.addEventListener("click", fillSample);
+    el.clear.addEventListener("click", clearAll);
+    checkApiHealth();
+
+    function toggleManual() {
+      const next = el.manualPanel.classList.contains("hidden");
+      el.manualPanel.classList.toggle("hidden", !next);
+      el.manualToggle.setAttribute("aria-expanded", String(next));
+    }
+
+    async function handleFileChange(event) {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+      await processDocxFile(file);
+    }
+
+    async function processDocxFile(file) {
+      el.fileName.textContent = file.name;
+      setStatus("正在解析 Word 标题层级...");
+      try {
+        uploadedFullText = normalizeText(await extractDocxText(file));
+        const sections = splitPaperSections(uploadedFullText);
+        if (sections.title) el.title.value = sections.title;
+        if (sections.abstract) el.abstract.value = sections.abstract;
+        if (sections.intro) el.intro.value = sections.intro;
+        originalOutline = extractOutline(uploadedFullText, sections.title);
+        renderCompare(originalOutline, originalOutline.map(item => ({ ...item })));
+        el.fileStatus.textContent = `已解析约 ${uploadedFullText.length} 字，识别出 ${Math.max(0, originalOutline.length - 1)} 个层级标题。`;
+        resetProgress();
+        setStatus("Word 已解析。检查左侧原版标题层级后，点击“开始改标题”。");
+      } catch (error) {
+        uploadedFullText = "";
+        originalOutline = [];
+        setStatus(`Word 解析失败：${error.message}`);
+        el.fileStatus.textContent = "如果当前浏览器不支持 Word 本地解析，可点“手动粘贴”输入标题和目录。";
+      }
+    }
+
+    function handleDragEnter(event) {
+      event.preventDefault();
+      el.uploadZone.classList.add("drag-over");
+    }
+
+    function handleDragOver(event) {
+      event.preventDefault();
+      el.uploadZone.classList.add("drag-over");
+    }
+
+    function handleDragLeave(event) {
+      event.preventDefault();
+      const related = event.relatedTarget;
+      if (!related || !el.uploadZone.contains(related)) {
+        el.uploadZone.classList.remove("drag-over");
+      }
+    }
+
+    async function handleDrop(event) {
+      event.preventDefault();
+      el.uploadZone.classList.remove("drag-over");
+      const file = event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files[0];
+      if (!file) return;
+      if (!/\.docx$/i.test(file.name)) {
+        setStatus("只支持拖入 .docx 文件。");
+        return;
+      }
+      await processDocxFile(file);
+    }
+
+    async function generate() {
+      const input = readInput();
+      const validation = validateInput(input);
+      if (validation) {
+        setStatus(validation);
+        return;
+      }
+
+      originalOutline = input.fullText
+        ? extractOutline(input.fullText, input.title)
+        : extractOutline(`${input.title}\n${input.abstract}\n${input.intro}`, input.title);
+      renderCompare(originalOutline, originalOutline.map(item => ({ ...item })));
+
+      setStatus("正在调用 AI 按专家规则改标题结构...");
+      el.generate.disabled = true;
+      try {
+        const result = location.protocol === "file:"
+          ? localOptimize(input, originalOutline)
+          : await callApi(input, originalOutline);
+        renderResult(result, input);
+        setStatus(result.meta && result.meta.mode === "fallback"
+          ? "已生成本地规则版。若要专家规则效果，请确认服务端 API 可用。"
+          : "已生成新版标题结构。红色部分为改动。");
+      } catch (error) {
+        const fallback = localOptimize(input, originalOutline);
+        renderResult(fallback, input);
+        setStatus(`API 调用失败，已展示本地规则版：${error.message}`);
+      } finally {
+        el.generate.disabled = false;
+      }
+    }
+
+    function readInput() {
+      return {
+        title: normalizeText(el.title.value),
+        abstract: normalizeText(el.abstract.value),
+        intro: normalizeText(el.intro.value),
+        fullText: normalizeText(uploadedFullText)
+      };
+    }
+
+    function validateInput(input) {
+      if (!input.title) return "请先上传 Word，或手动填写原标题。";
+      if (!/[\u4e00-\u9fa5]/.test(input.title)) return "第一版只处理中文教育/社科论文标题。";
+      const contextLength = [input.abstract, input.intro, input.fullText].join("").length;
+      if (contextLength < 80) return "请上传完整 Word，或手动粘贴至少 80 字论文内容/目录。";
+      return "";
+    }
+
+    async function callApi(input, outline) {
+      const response = await fetch(`${API_BASE}/api/optimize-title`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...input, outline })
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(payload && payload.error ? payload.error : "接口请求失败");
+      return payload;
+    }
+
+    function renderResult(result, input) {
+      const normalized = normalizeDisplayedResult(result);
+      const revision = Array.isArray(normalized.outlineRevision) ? normalized.outlineRevision : [];
+      const newOutline = buildNewOutline(originalOutline, normalized.recommendedTitle, revision);
+      renderCompare(originalOutline, newOutline);
+      renderDiagnosis(normalized.diagnosis || []);
+      renderCandidates(normalized);
+    }
+
+    function renderCompare(oldOutline, newOutline) {
+      if (!oldOutline.length) {
+        el.empty.classList.remove("hidden");
+        el.compareGrid.classList.add("hidden");
+        return;
+      }
+      el.empty.classList.add("hidden");
+      el.compareGrid.classList.remove("hidden");
+      el.oldCount.textContent = `${oldOutline.length} 个标题`;
+      el.newCount.textContent = `${newOutline.length} 个标题`;
+      el.oldOutline.innerHTML = oldOutline.map((item, index) => renderOutlineItem(item, index)).join("");
+      el.newOutline.innerHTML = newOutline.map((item, index) => {
+        const oldText = oldOutline[index] ? oldOutline[index].text : "";
+        return renderOutlineItem(item, index, diffHtml(oldText, item.text));
+      }).join("");
+    }
+
+    function renderOutlineItem(item, index, htmlText) {
+      const level = clampLevel(item.level);
+      return `
+        <div class="outline-item level-${level}">
+          <div class="outline-index">${index === 0 ? "" : index}</div>
+          <div class="outline-text">${htmlText || escapeHtml(item.text)}</div>
+        </div>
+      `;
+    }
+
+    function buildNewOutline(oldOutline, recommendedTitle, revision) {
+      const byIndex = new Map();
+      const byOldText = new Map();
+      for (const item of revision) {
+        if (!item) continue;
+        if (Number.isInteger(item.index)) byIndex.set(item.index, item);
+        if (item.oldText) byOldText.set(normalizeKey(item.oldText), item);
+      }
+
+      return oldOutline.map((item, index) => {
+        const update = byIndex.get(index) || byOldText.get(normalizeKey(item.text));
+        const newText = update && update.newText ? update.newText : (index === 0 && recommendedTitle ? recommendedTitle : item.text);
+        return {
+          level: Number.isInteger(update && update.level) ? update.level : item.level,
+          text: normalizeText(newText)
+        };
+      });
+    }
+
+    function renderDiagnosis(items) {
+      const clean = items.map(item => String(item || "").trim()).filter(Boolean).slice(0, 3);
+      el.diagnosisList.innerHTML = (clean.length ? clean : ["暂未识别明显问题。"])
+        .map(item => `<li>${escapeHtml(item)}</li>`)
+        .join("");
+    }
+
+    function renderCandidates(result) {
+      const candidates = [];
+      if (result.recommendedTitle) {
+        candidates.push({
+          type: "推荐标题",
+          title: result.recommendedTitle,
+          reason: result.recommendedReason || "综合原文信息后的优先版本。"
+        });
+      }
+      for (const item of (result.alternativeTitles || []).slice(0, 3)) {
+        candidates.push({
+          type: item.type || "备选标题",
+          title: item.title || "",
+          reason: item.reason || ""
+        });
+      }
+      el.candidateList.innerHTML = candidates.length
+        ? candidates.map(item => `
+          <article class="candidate">
+            <b>${escapeHtml(item.type)}</b>
+            <p class="candidate-title">${escapeHtml(item.title)}</p>
+            <p>${escapeHtml(item.reason)}</p>
+          </article>
+        `).join("")
+        : `<p class="small-note">暂无候选标题。</p>`;
+    }
+
+    function normalizeDisplayedResult(result) {
+      const normalized = {
+        ...result,
+        recommendedTitle: stripCaseSubtitle(result && result.recommendedTitle)
+      };
+      if (Array.isArray(result && result.outlineRevision)) {
+        normalized.outlineRevision = result.outlineRevision.map(item => ({
+          ...item,
+          oldText: stripCaseSubtitle(item && item.oldText),
+          newText: stripCaseSubtitle(item && item.newText)
+        }));
+      }
+      if (Array.isArray(result && result.alternativeTitles)) {
+        normalized.alternativeTitles = result.alternativeTitles.map(item => ({
+          ...item,
+          title: stripCaseSubtitle(item && item.title)
+        }));
+      }
+      return normalized;
+    }
+
+    function stripCaseSubtitle(text) {
+      return normalizeText(text)
+        .replace(/(?:——|—|-)?[（(]?\s*以["“『《]?[^"”』》]+["”』》]?\s*为例\s*[)）]?$/g, "")
+        .replace(/(?:——|—|-)?[（(]?\s*以["“『《]?[^"”』》]+["”』》]?\s*教学为例\s*[)）]?$/g, "")
+        .replace(/(?:——|—|-)?[（(]?\s*基于["“『《]?[^"”』》]+["”』》]?\s*为例\s*[)）]?$/g, "")
+        .replace(/\s*[-—]*\s*以["“『《]?[^"”』》]+["”』》]?\s*为例$/, "")
+        .trim();
+    }
+
+    function localOptimize(input, outline) {
+      const originalTitle = input.title || (outline[0] && outline[0].text) || "论文标题";
+      const recommendedTitle = localRecommendedTitle(originalTitle, input);
+      const outlineRevision = outline.map((item, index) => {
+        if (index === 0) return { index, level: item.level, oldText: item.text, newText: recommendedTitle };
+        if (/构建与实践|路径与思考|实践探索|落地实施/.test(item.text)) {
+          return {
+            index,
+            level: item.level,
+            oldText: item.text,
+            newText: item.text
+              .replace("构建与实践", "转型实践")
+              .replace("路径与思考", "转型实践")
+              .replace("实践探索", "循证实践")
+              .replace("落地实施", "实践生成")
+          };
+        }
+        return { index, level: item.level, oldText: item.text, newText: item.text };
+      });
+      return {
+        profile: { object: "教育/社科论文", scene: "投稿前标题优化", method: "", academicPivot: "问题意识" },
+        diagnosis: [
+          "原标题需要进一步明确唯一题眼，避免多个概念并列导致主从关系不清。",
+          "若标题停留在“构建与实践”“路径与思考”，容易显得工作化，缺少方法论和理论张力。",
+          "小标题应围绕同一核心概念成组展开，避免目录式罗列。"
+        ],
+        recommendedTitle,
+        recommendedReason: "本地规则优先保留原题核心表达，同时把低辨识度的做法词替换为更有教研转型意味的表述。",
+        alternativeTitles: [
+          { type: "稳妥投稿型", title: recommendedTitle.replace(/：.+$/, "：教育/社科论文标题优化实践"), reason: "表达稳妥，便于投稿场景使用。" },
+          { type: "问题意识型", title: `从“题目像工作”到“标题像论文”：${compactSubject(originalTitle)}标题优化实践`, reason: "突出原题问题和修改方向。" },
+          { type: "学术表达型", title: `${compactSubject(originalTitle)}标题命名的结构化诊断与表达转化`, reason: "强化结构化诊断和学术表达。" }
+        ],
+        outlineRevision,
+        meta: { mode: "local" }
+      };
+    }
+
+    function localRecommendedTitle(title, input) {
+      let next = title
+        .replace(/AI赋能/g, "AI数智")
+        .replace(/构建与实践/g, "转型实践")
+        .replace(/路径与思考/g, "转型实践")
+        .replace(/人工智能支持/g, "AI支持下")
+        .replace(/-以.+?为例$/g, "")
+        .replace(/——以.+?为例$/g, "");
+      if (!/教研/.test(next) && /课堂|教学|教师|课程|学校/.test(input.fullText + input.abstract + input.intro + title)) {
+        next = next.replace(/课堂|教学|课程/, match => `${match}教研`);
+      }
+      return next;
+    }
+
+    function extractOutline(text, fallbackTitle) {
+      const lines = normalizeText(text).split(/\n+/).map(line => line.trim()).filter(Boolean);
+      const items = [];
+      const seen = new Set();
+      const title = fallbackTitle || findLikelyTitle(lines);
+      if (title) pushItem(items, seen, 0, title);
+
+      for (const line of lines) {
+        const clean = cleanLine(line);
+        if (!clean || clean === title) continue;
+        const level = detectHeadingLevel(clean);
+        if (level === null) continue;
+        pushItem(items, seen, level, clean);
+      }
+
+      return items.slice(0, 120);
+    }
+
+    function pushItem(items, seen, level, text) {
+      const clean = cleanLine(text);
+      const key = `${level}:${clean}`;
+      if (!clean || seen.has(key)) return;
+      seen.add(key);
+      items.push({ level, text: clean });
+    }
+
+    function findLikelyTitle(lines) {
+      return lines.find(line => {
+        const clean = cleanLine(line);
+        return clean.length >= 6 &&
+          clean.length <= 58 &&
+          !detectHeadingLevel(clean) &&
+          !/^(摘要|关键词|目录|参考文献|作者|单位)/.test(clean);
+      }) || "";
+    }
+
+    function detectHeadingLevel(line) {
+      if (isPlainDataLine(line)) return null;
+      if (/^(引子|尾声|危机浮现|问题诊断|觉醒起点|深度验证|制度重构|理论升华|价值坚守|失焦|对焦|成像|画像|困惑|审视|建构|实践|特征|结语|价值回归)[：:]/.test(line)) return 1;
+      if (/^[一二三四五六七八九十]+[、.．]/.test(line)) return 1;
+      if (/^（[一二三四五六七八九十]+）/.test(line)) return 2;
+      if (/^\([一二三四五六七八九十]+\)/.test(line)) return 2;
+      if (/^(第一|第二|第三|第四|第五|第六|步骤一|步骤二|步骤三|路径一|路径二|路径三|路径四|方向之一|方向之二|方向之三|方向之四)[，、：:]/.test(line)) return 3;
+      if (/^\d+[.．、]/.test(line)) {
+        const body = line.replace(/^\d+[.．、]\s*/, "");
+        if (!isPlainDataLine(body)) return 3;
+      }
+      if (/^\d+\.\d+/.test(line)) return null;
+      if (/^[（(]\d+[）)]/.test(line)) return 4;
+      return null;
+    }
+
+    function isPlainDataLine(line) {
+      const clean = String(line || "").replace(/\s+/g, "");
+      if (!clean) return true;
+      if (/^[+-]?\d+(\.\d+)?$/.test(clean)) return true;
+      if (/^[+-]?\d+(\.\d+)?(?:%|％|分|分钟|min|小时|次|项|条|分数|分点)$/.test(clean)) return true;
+      if (/^\d+\.\d+\.\d+$/.test(clean)) return true;
+      if (/^[\d.]+(?:分|分钟|次|项|条|%|％)$/.test(clean)) return true;
+      return false;
+    }
+
+    function cleanLine(line) {
+      return normalizeText(line)
+        .replace(/\s+/g, " ")
+        .replace(/[ \t]+$/g, "")
+        .slice(0, 120);
+    }
+
+    function splitPaperSections(text) {
+      const clean = normalizeText(text);
+      const lines = clean.split(/\n+/).map(line => line.trim()).filter(Boolean);
+      return {
+        title: findLikelyTitle(lines),
+        abstract: captureSection(clean, /摘要[:：\s]*/, /(关键词|引言|绪论|一[、.．]|1[.．、])/),
+        intro: captureSection(clean, /(引言|绪论|一[、.．]\s*引言|1[.．、]\s*引言)[:：\s]*/, /(二[、.．]|2[.．、]|研究方法|文献综述|理论基础)/)
+      };
+    }
+
+    function captureSection(text, startPattern, endPattern) {
+      const start = text.search(startPattern);
+      if (start < 0) return "";
+      const after = text.slice(start).replace(startPattern, "");
+      const end = after.search(endPattern);
+      return normalizeText((end >= 0 ? after.slice(0, end) : after).slice(0, 1800));
+    }
+
+    async function extractDocxText(file) {
+      const buffer = await file.arrayBuffer();
+      const entries = parseZip(buffer);
+      const documentEntry = entries.find(entry => entry.name === "word/document.xml");
+      if (!documentEntry) throw new Error("没有找到 word/document.xml");
+      const xmlBytes = await inflateZipEntry(buffer, documentEntry);
+      const xml = new TextDecoder("utf-8").decode(xmlBytes);
+      return xmlToPlainText(xml);
+    }
+
+    function parseZip(buffer) {
+      const view = new DataView(buffer);
+      const bytes = new Uint8Array(buffer);
+      let eocd = -1;
+      for (let i = bytes.length - 22; i >= Math.max(0, bytes.length - 66000); i--) {
+        if (view.getUint32(i, true) === 0x06054b50) {
+          eocd = i;
+          break;
+        }
+      }
+      if (eocd < 0) throw new Error("不是有效的 .docx 文件");
+
+      const total = view.getUint16(eocd + 10, true);
+      const centralOffset = view.getUint32(eocd + 16, true);
+      const entries = [];
+      let ptr = centralOffset;
+
+      for (let i = 0; i < total; i++) {
+        if (view.getUint32(ptr, true) !== 0x02014b50) throw new Error("Word 压缩目录损坏");
+        const method = view.getUint16(ptr + 10, true);
+        const compressedSize = view.getUint32(ptr + 20, true);
+        const uncompressedSize = view.getUint32(ptr + 24, true);
+        const nameLength = view.getUint16(ptr + 28, true);
+        const extraLength = view.getUint16(ptr + 30, true);
+        const commentLength = view.getUint16(ptr + 32, true);
+        const localOffset = view.getUint32(ptr + 42, true);
+        const nameBytes = bytes.slice(ptr + 46, ptr + 46 + nameLength);
+        const name = new TextDecoder("utf-8").decode(nameBytes);
+        entries.push({ name, method, compressedSize, uncompressedSize, localOffset });
+        ptr += 46 + nameLength + extraLength + commentLength;
+      }
+      return entries;
+    }
+
+    async function inflateZipEntry(buffer, entry) {
+      const view = new DataView(buffer);
+      const bytes = new Uint8Array(buffer);
+      const ptr = entry.localOffset;
+      if (view.getUint32(ptr, true) !== 0x04034b50) throw new Error("Word 局部文件头损坏");
+      const nameLength = view.getUint16(ptr + 26, true);
+      const extraLength = view.getUint16(ptr + 28, true);
+      const dataStart = ptr + 30 + nameLength + extraLength;
+      const compressed = bytes.slice(dataStart, dataStart + entry.compressedSize);
+      if (entry.method === 0) return compressed;
+      if (entry.method !== 8) throw new Error("不支持的 Word 压缩方式");
+      if (!("DecompressionStream" in window)) throw new Error("当前浏览器不支持本地解压 Word");
+      const stream = new Blob([compressed]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+      return new Uint8Array(await new Response(stream).arrayBuffer());
+    }
+
+    function xmlToPlainText(xml) {
+      return xml
+        .replace(/<w:tab\/>/g, "\t")
+        .replace(/<w:br\/>/g, "\n")
+        .replace(/<\/w:p>/g, "\n")
+        .replace(/<[^>]+>/g, "")
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/&amp;/g, "&")
+        .replace(/&quot;/g, "\"")
+        .replace(/&apos;/g, "'")
+        .replace(/\n{3,}/g, "\n\n")
+        .trim();
+    }
+
+    function diffHtml(oldText, newText) {
+      oldText = String(oldText || "");
+      newText = String(newText || "");
+      if (oldText === newText) return escapeHtml(newText);
+      const oldChars = [...oldText];
+      const newChars = [...newText];
+      const rows = oldChars.length + 1;
+      const cols = newChars.length + 1;
+      const dp = Array.from({ length: rows }, () => Array(cols).fill(0));
+      for (let i = oldChars.length - 1; i >= 0; i--) {
+        for (let j = newChars.length - 1; j >= 0; j--) {
+          dp[i][j] = oldChars[i] === newChars[j]
+            ? dp[i + 1][j + 1] + 1
+            : Math.max(dp[i + 1][j], dp[i][j + 1]);
+        }
+      }
+      let i = 0;
+      let j = 0;
+      let html = "";
+      while (j < newChars.length) {
+        if (i < oldChars.length && oldChars[i] === newChars[j]) {
+          html += escapeHtml(newChars[j]);
+          i++;
+          j++;
+        } else if (i < oldChars.length && dp[i + 1][j] >= dp[i][j + 1]) {
+          i++;
+        } else {
+          html += `<span class="changed-text">${escapeHtml(newChars[j])}</span>`;
+          j++;
+        }
+      }
+      return html;
+    }
+
+    function fillSample() {
+      uploadedFullText = sampleText;
+      el.title.value = "从“完美学霸”到“问题学伴”：AI赋能语文课堂的路径与思考";
+      el.abstract.value = "本文围绕AI进入语文课堂后的学习依赖、认知冲突与能力边界展开，尝试从课堂教学转向数智教研，讨论教师如何利用不完美的AI激发学生深读、批判翻译、字词迁移和表达判断。";
+      el.intro.value = sampleText;
+      originalOutline = extractOutline(sampleText, el.title.value);
+      renderCompare(originalOutline, originalOutline.map(item => ({ ...item })));
+      resetProgress();
+      setStatus("已填入示例。点击“开始改标题”查看红字对比。");
+    }
+
+    function clearAll() {
+      uploadedFullText = "";
+      originalOutline = [];
+      el.file.value = "";
+      el.fileName.textContent = "默认上传 .docx 文件";
+      el.fileStatus.textContent = "系统会先抽取大标题和各级小标题，再让 AI 按专家规则生成新版标题结构。";
+      el.uploadZone.classList.remove("drag-over");
+      el.title.value = "";
+      el.abstract.value = "";
+      el.intro.value = "";
+      resetProgress();
+      el.empty.classList.remove("hidden");
+      el.compareGrid.classList.add("hidden");
+      el.diagnosisList.innerHTML = "<li>上传后显示最多 3 条关键问题。</li>";
+      el.candidateList.innerHTML = `<p class="small-note">这里保留推荐标题和 3 个备选标题，便于后续挑选。</p>`;
+      setStatus("等待上传 Word。");
+    }
+
+    function setStatus(message) {
+      el.status.textContent = message;
+    }
+
+    function setProgress(percent, label) {
+      const next = Math.max(0, Math.min(100, Number(percent) || 0));
+      el.progressShell.hidden = false;
+      el.progressBar.style.width = `${next}%`;
+      el.progressLabel.textContent = label || "正在处理";
+      el.progressPercent.textContent = `${Math.round(next)}%`;
+    }
+
+    function resetProgress() {
+      el.progressShell.hidden = true;
+      el.progressBar.style.width = "0%";
+      el.progressLabel.textContent = "等待开始";
+      el.progressPercent.textContent = "0%";
+    }
+
+    function startProgress(label) {
+      setProgress(12, label || "开始改标题");
+    }
+
+    function bumpProgress(percent, label) {
+      setProgress(percent, label);
+    }
+
+    function finishProgress(label) {
+      setProgress(100, label || "已完成");
+    }
+
+    async function checkApiHealth() {
+      try {
+        const response = await fetch(`${API_BASE}/api/health`, { cache: "no-store" });
+        const data = await response.json();
+        if (!response.ok || !data.ok) throw new Error("API unavailable");
+        el.apiPill.textContent = data.keyConfigured
+          ? `API：已连接 / ${data.provider} / ${data.model}`
+          : `API：服务在，但未配置 key`;
+        el.apiPill.style.color = "#0f5132";
+        el.apiPill.style.borderColor = "#b9e2c8";
+        el.apiPill.style.background = "#eefaf3";
+      } catch {
+        el.apiPill.textContent = "API：未连接 / 本地规则";
+        el.apiPill.style.color = "#7a3b16";
+        el.apiPill.style.borderColor = "#f0d1b8";
+        el.apiPill.style.background = "#fff6ee";
+      }
+    }
+
+    async function generate() {
+      const input = readInput();
+      const validation = validateInput(input);
+      if (validation) {
+        setStatus(validation);
+        return;
+      }
+
+      originalOutline = input.fullText
+        ? extractOutline(input.fullText, input.title)
+        : extractOutline(`${input.title}\n${input.abstract}\n${input.intro}`, input.title);
+      renderCompare(originalOutline, originalOutline.map(item => ({ ...item })));
+
+      startProgress("正在解析文本");
+      setStatus("正在调用 AI 按专家规则改标题结构...");
+      el.generate.disabled = true;
+      try {
+        bumpProgress(25, "提取原标题和层级");
+        const result = location.protocol === "file:"
+          ? localOptimize(input, originalOutline)
+          : await callApi(input, originalOutline);
+        bumpProgress(70, "生成新版标题");
+        renderResult(result, input);
+        finishProgress("改标题完成");
+        setStatus(result.meta && result.meta.mode === "fallback"
+          ? "已生成本地规则版。若要专家规则效果，请确认服务端 API 可用。"
+          : "已生成新版本标题结构。红色部分为改动。");
+      } catch (error) {
+        bumpProgress(90, "API 失败，切换本地规则版");
+        const fallback = localOptimize(input, originalOutline);
+        renderResult(fallback, input);
+        finishProgress("已显示本地规则版");
+        setStatus(`API 调用失败，已展现本地规则版：${error.message}`);
+      } finally {
+        el.generate.disabled = false;
+      }
+    }
+
+    function normalizeText(text) {
+      return String(text || "")
+        .replace(/\u3000/g, " ")
+        .replace(/\r/g, "\n")
+        .replace(/[ \t]+/g, " ")
+        .replace(/\n{3,}/g, "\n\n")
+        .trim();
+    }
+
+    function normalizeKey(text) {
+      return normalizeText(text).replace(/\s+/g, "");
+    }
+
+    function compactSubject(title) {
+      return normalizeText(title)
+        .replace(/[：:].+$/, "")
+        .replace(/[“”"'《》]/g, "")
+        .slice(0, 18) || "论文";
+    }
+
+    function clampLevel(level) {
+      const n = Number(level);
+      if (!Number.isFinite(n)) return 3;
+      return Math.max(0, Math.min(4, n));
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+  </script>
+</body>
+</html>
