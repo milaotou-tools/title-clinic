@@ -832,7 +832,9 @@
           ? "已生成本地规则版。若要专家规则效果，请确认服务端 API 可用。"
           : "已生成新版标题结构。红色部分为改动。");
       } catch (error) {
-        setStatus(`AI 服务调用失败：${error.message}。本次没有使用本地规则版，请稍后重试。`);
+        const fallback = localOptimize(input, originalOutline);
+        renderResult(fallback, input);
+        setStatus(`API 调用失败，已展示本地规则版：${error.message}`);
       } finally {
         el.generate.disabled = false;
       }
@@ -858,66 +860,12 @@
     async function callApi(input, outline) {
       const response = await fetch(`${API_BASE}/api/optimize-title`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "Accept": "text/event-stream" },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...input, outline })
       });
-      if (response.headers.get("content-type") && response.headers.get("content-type").includes("text/event-stream")) {
-        return readEventStream(response);
-      }
       const payload = await response.json().catch(() => null);
       if (!response.ok) throw new Error(payload && payload.error ? payload.error : "接口请求失败");
       return payload;
-    }
-
-    async function readEventStream(response) {
-      if (!response.ok) throw new Error("AI 服务请求失败");
-      if (!response.body) throw new Error("浏览器不支持流式响应");
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-      let eventName = "message";
-      let dataLines = [];
-
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split(/\r?\n/);
-        buffer = lines.pop() || "";
-
-        for (const line of lines) {
-          if (line.startsWith("event:")) {
-            eventName = line.slice(6).trim() || "message";
-            continue;
-          }
-          if (line.startsWith("data:")) {
-            dataLines.push(line.slice(5).trim());
-            continue;
-          }
-          if (line === "") {
-            const raw = dataLines.join("\n");
-            dataLines = [];
-            if (!raw) {
-              eventName = "message";
-              continue;
-            }
-            const payload = JSON.parse(raw);
-            if (eventName === "progress" && payload.message) {
-              setStatus(payload.message);
-              bumpProgress(70, payload.message);
-            }
-            if (eventName === "error") {
-              throw new Error(payload.error || "AI 服务失败");
-            }
-            if (eventName === "result") {
-              return payload;
-            }
-            eventName = "message";
-          }
-        }
-      }
-      throw new Error("AI 服务连接结束但没有返回结果");
     }
 
     function renderResult(result, input) {
@@ -959,59 +907,20 @@
     function buildNewOutline(oldOutline, recommendedTitle, revision) {
       const byIndex = new Map();
       const byOldText = new Map();
-      const revisions = [];
       for (const item of revision) {
         if (!item) continue;
-        revisions.push(item);
         if (Number.isInteger(item.index)) byIndex.set(item.index, item);
-        if (typeof item.id === "string" && /^T\d+$/.test(item.id.trim())) byIndex.set(Number(item.id.trim().slice(1)), item);
         if (item.oldText) byOldText.set(normalizeKey(item.oldText), item);
       }
 
-      const used = new Set();
       return oldOutline.map((item, index) => {
-        const update = takeUnused(byOldText.get(normalizeKey(item.text)), used)
-          || takeUnused(getTrustedIndexUpdate(byIndex, oldOutline, index), used)
-          || takeUnused(findNearbyRevision(revisions, oldOutline, index, used), used);
+        const update = byIndex.get(index) || byOldText.get(normalizeKey(item.text));
         const newText = update && update.newText ? update.newText : (index === 0 && recommendedTitle ? recommendedTitle : item.text);
         return {
           level: Number.isInteger(update && update.level) ? update.level : item.level,
           text: normalizeText(newText)
         };
       });
-    }
-
-    function getTrustedIndexUpdate(byIndex, oldOutline, index) {
-      const update = byIndex.get(index);
-      if (!update) return null;
-      if (typeof update.id === "string" && /^T\d+$/.test(update.id.trim()) && Number(update.id.trim().slice(1)) === index) return update;
-      if (!update.oldText) return update;
-      const original = oldOutline[index] && oldOutline[index].text;
-      return normalizeKey(update.oldText) === normalizeKey(original) ? update : null;
-    }
-
-    function findNearbyRevision(revisions, oldOutline, index, used) {
-      const target = oldOutline[index];
-      if (!target) return null;
-      let best = null;
-      let bestScore = 0;
-      for (const item of revisions) {
-        if (!item || used.has(item) || !item.oldText) continue;
-        if (Number.isInteger(item.index) && Math.abs(item.index - index) > 3) continue;
-        if (Math.abs(clampLevel(item.level) - clampLevel(target.level)) > 1) continue;
-        const score = looseSimilarity(item.oldText, target.text);
-        if (score > bestScore) {
-          best = item;
-          bestScore = score;
-        }
-      }
-      return bestScore >= 0.42 ? best : null;
-    }
-
-    function takeUnused(item, used) {
-      if (!item || used.has(item)) return null;
-      used.add(item);
-      return item;
     }
 
     function renderDiagnosis(items) {
@@ -1051,23 +960,31 @@
     function normalizeDisplayedResult(result) {
       const normalized = {
         ...result,
-        recommendedTitle: normalizeText(result && result.recommendedTitle)
+        recommendedTitle: stripCaseSubtitle(result && result.recommendedTitle)
       };
       if (Array.isArray(result && result.outlineRevision)) {
         normalized.outlineRevision = result.outlineRevision.map(item => ({
           ...item,
-          id: typeof item.id === "string" ? item.id.trim() : "",
-          oldText: normalizeText(item && item.oldText),
-          newText: normalizeText(item && item.newText)
+          oldText: stripCaseSubtitle(item && item.oldText),
+          newText: stripCaseSubtitle(item && item.newText)
         }));
       }
       if (Array.isArray(result && result.alternativeTitles)) {
         normalized.alternativeTitles = result.alternativeTitles.map(item => ({
           ...item,
-          title: normalizeText(item && item.title)
+          title: stripCaseSubtitle(item && item.title)
         }));
       }
       return normalized;
+    }
+
+    function stripCaseSubtitle(text) {
+      return normalizeText(text)
+        .replace(/(?:——|—|-)?[（(]?\s*以["“『《]?[^"”』》]+["”』》]?\s*为例\s*[)）]?$/g, "")
+        .replace(/(?:——|—|-)?[（(]?\s*以["“『《]?[^"”』》]+["”』》]?\s*教学为例\s*[)）]?$/g, "")
+        .replace(/(?:——|—|-)?[（(]?\s*基于["“『《]?[^"”』》]+["”』》]?\s*为例\s*[)）]?$/g, "")
+        .replace(/\s*[-—]*\s*以["“『《]?[^"”』》]+["”』》]?\s*为例$/, "")
+        .trim();
     }
 
     function localOptimize(input, outline) {
@@ -1160,7 +1077,6 @@
 
     function detectHeadingLevel(line) {
       if (isPlainDataLine(line)) return null;
-      if (isLikelyTableOrMetricLine(line)) return null;
       if (/^(引子|尾声|危机浮现|问题诊断|觉醒起点|深度验证|制度重构|理论升华|价值坚守|失焦|对焦|成像|画像|困惑|审视|建构|实践|特征|结语|价值回归)[：:]/.test(line)) return 1;
       if (/^[一二三四五六七八九十]+[、.．]/.test(line)) return 1;
       if (/^（[一二三四五六七八九十]+）/.test(line)) return 2;
@@ -1182,16 +1098,6 @@
       if (/^[+-]?\d+(\.\d+)?(?:%|％|分|分钟|min|小时|次|项|条|分数|分点)$/.test(clean)) return true;
       if (/^\d+\.\d+\.\d+$/.test(clean)) return true;
       if (/^[\d.]+(?:分|分钟|次|项|条|%|％)$/.test(clean)) return true;
-      return false;
-    }
-
-    function isLikelyTableOrMetricLine(line) {
-      const clean = String(line || "").replace(/\s+/g, "");
-      if (!clean) return true;
-      if (/^\d+(?:\.\d+)+$/.test(clean)) return true;
-      if (/^[A-Za-z]+[=-][A-Za-z0-9+\-*/=（）()]+$/.test(clean)) return true;
-      if (/[①②③④⑤⑥⑦⑧⑨⑩]/.test(clean) && /\d/.test(clean) && clean.length <= 34) return true;
-      if (/[=＋+\-−×*/]/.test(clean) && /\d/.test(clean) && clean.length <= 42) return true;
       return false;
     }
 
@@ -1282,7 +1188,6 @@
 
     function xmlToPlainText(xml) {
       return xml
-        .replace(/<w:tbl[\s\S]*?<\/w:tbl>/g, "\n")
         .replace(/<w:tab\/>/g, "\t")
         .replace(/<w:br\/>/g, "\n")
         .replace(/<\/w:p>/g, "\n")
@@ -1437,9 +1342,11 @@
           ? "已生成本地规则版。若要专家规则效果，请确认服务端 API 可用。"
           : "已生成新版本标题结构。红色部分为改动。");
       } catch (error) {
-        bumpProgress(100, "AI 服务失败");
-        finishProgress("AI 服务失败");
-        setStatus(`AI 服务调用失败：${error.message}。本次没有使用本地规则版，请稍后重试。`);
+        bumpProgress(90, "API 失败，切换本地规则版");
+        const fallback = localOptimize(input, originalOutline);
+        renderResult(fallback, input);
+        finishProgress("已显示本地规则版");
+        setStatus(`API 调用失败，已展现本地规则版：${error.message}`);
       } finally {
         el.generate.disabled = false;
       }
@@ -1456,21 +1363,6 @@
 
     function normalizeKey(text) {
       return normalizeText(text).replace(/\s+/g, "");
-    }
-
-    function looseKey(text) {
-      return normalizeKey(text).replace(/[^\u4e00-\u9fa5A-Za-z0-9]/g, "");
-    }
-
-    function looseSimilarity(a, b) {
-      const left = Array.from(new Set(looseKey(a)));
-      const right = new Set(looseKey(b));
-      if (!left.length || !right.size) return 0;
-      let common = 0;
-      for (const char of left) {
-        if (right.has(char)) common++;
-      }
-      return common / Math.max(left.length, right.size);
     }
 
     function compactSubject(title) {
