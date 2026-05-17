@@ -35,11 +35,11 @@ module.exports = async function handler(req, res) {
   }
 
   try {
+    if (wantsEventStream(req)) {
+      return streamOptimization(req, res, input);
+    }
     const result = await optimizeWithDeepSeek(input);
-    return sendJson(res, 200, {
-      ...normalizeModelResult(result, input),
-      meta: { mode: "api", provider: "deepseek", model: DEEPSEEK_MODEL }
-    });
+    return sendJson(res, 200, withApiMeta(normalizeModelResult(result, input)));
   } catch (error) {
     return sendJson(res, 504, {
       error: sanitizeErrorMessage(error),
@@ -49,7 +49,42 @@ module.exports = async function handler(req, res) {
   }
 };
 
-async function optimizeWithDeepSeek(input) {
+async function streamOptimization(req, res, input) {
+  res.statusCode = 200;
+  res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
+  res.setHeader("Cache-Control", "no-cache, no-transform");
+  res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no");
+
+  let closed = false;
+  res.on("close", () => {
+    closed = true;
+  });
+
+  const send = (event, payload) => {
+    if (closed || res.writableEnded) return;
+    res.write(`event: ${event}\n`);
+    res.write(`data: ${JSON.stringify(payload)}\n\n`);
+  };
+
+  const heartbeat = setInterval(() => {
+    send("progress", { message: "AI 正在通读全文并套用专家规则..." });
+  }, 8000);
+
+  try {
+    send("progress", { message: "已连接 AI，开始通读全文..." });
+    const result = await optimizeWithDeepSeek(input, message => send("progress", { message }));
+    send("result", withApiMeta(normalizeModelResult(result, input)));
+    clearInterval(heartbeat);
+    return res.end();
+  } catch (error) {
+    clearInterval(heartbeat);
+    send("error", { error: sanitizeErrorMessage(error), provider: "deepseek", model: DEEPSEEK_MODEL });
+    return res.end();
+  }
+}
+
+async function optimizeWithDeepSeek(input, onProgress) {
   const expertRules = await loadExpertRules();
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), DEEPSEEK_TIMEOUT_MS);
@@ -93,22 +128,70 @@ async function optimizeWithDeepSeek(input) {
         }
       ],
       temperature: 0.25,
-      max_tokens: 1800
+      max_tokens: 8192,
+      stream: true
     })
   }).finally(() => clearTimeout(timeout));
 
-  const payload = await response.json().catch(() => null);
   if (!response.ok) {
-    const message = payload && payload.error && payload.error.message
-      ? payload.error.message
-      : "DeepSeek API request failed";
+    const errorText = await response.text().catch(() => "");
+    let message = "DeepSeek API request failed";
+    try {
+      const payload = JSON.parse(errorText);
+      message = payload && payload.error && payload.error.message ? payload.error.message : message;
+    } catch {
+      if (errorText) message = errorText.slice(0, 500);
+    }
     throw new Error(message);
   }
 
-  const text = payload && payload.choices && payload.choices[0] && payload.choices[0].message
-    ? payload.choices[0].message.content
-    : "";
+  const text = await readDeepSeekStream(response, onProgress);
   return parseJsonObject(text);
+}
+
+async function readDeepSeekStream(response, onProgress) {
+  if (!response.body) throw new Error("DeepSeek stream is empty");
+  if (onProgress) onProgress("DeepSeek 已开始返回，正在生成新版标题结构...");
+  const decoder = new TextDecoder();
+  const reader = response.body.getReader();
+  let buffer = "";
+  let content = "";
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split(/\r?\n/);
+    buffer = lines.pop() || "";
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed || !trimmed.startsWith("data:")) continue;
+      const data = trimmed.slice(5).trim();
+      if (!data || data === "[DONE]") continue;
+      try {
+        const payload = JSON.parse(data);
+        const delta = payload && payload.choices && payload.choices[0] && payload.choices[0].delta;
+        if (delta && typeof delta.content === "string") content += delta.content;
+      } catch {
+        // Ignore malformed stream keep-alive lines.
+      }
+    }
+  }
+
+  if (!content.trim()) throw new Error("DeepSeek stream did not return content");
+  return content;
+}
+
+function withApiMeta(result) {
+  return {
+    ...result,
+    meta: { mode: "api", provider: "deepseek", model: DEEPSEEK_MODEL }
+  };
+}
+
+function wantsEventStream(req) {
+  return String(req.headers.accept || "").includes("text/event-stream");
 }
 
 async function loadExpertRules() {

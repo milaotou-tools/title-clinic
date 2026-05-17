@@ -858,12 +858,66 @@
     async function callApi(input, outline) {
       const response = await fetch(`${API_BASE}/api/optimize-title`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "Accept": "text/event-stream" },
         body: JSON.stringify({ ...input, outline })
       });
+      if (response.headers.get("content-type") && response.headers.get("content-type").includes("text/event-stream")) {
+        return readEventStream(response);
+      }
       const payload = await response.json().catch(() => null);
       if (!response.ok) throw new Error(payload && payload.error ? payload.error : "接口请求失败");
       return payload;
+    }
+
+    async function readEventStream(response) {
+      if (!response.ok) throw new Error("AI 服务请求失败");
+      if (!response.body) throw new Error("浏览器不支持流式响应");
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let eventName = "message";
+      let dataLines = [];
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split(/\r?\n/);
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          if (line.startsWith("event:")) {
+            eventName = line.slice(6).trim() || "message";
+            continue;
+          }
+          if (line.startsWith("data:")) {
+            dataLines.push(line.slice(5).trim());
+            continue;
+          }
+          if (line === "") {
+            const raw = dataLines.join("\n");
+            dataLines = [];
+            if (!raw) {
+              eventName = "message";
+              continue;
+            }
+            const payload = JSON.parse(raw);
+            if (eventName === "progress" && payload.message) {
+              setStatus(payload.message);
+              bumpProgress(70, payload.message);
+            }
+            if (eventName === "error") {
+              throw new Error(payload.error || "AI 服务失败");
+            }
+            if (eventName === "result") {
+              return payload;
+            }
+            eventName = "message";
+          }
+        }
+      }
+      throw new Error("AI 服务连接结束但没有返回结果");
     }
 
     function renderResult(result, input) {
