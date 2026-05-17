@@ -4,6 +4,7 @@ const path = require("node:path");
 const ROOT = path.join(__dirname, "..");
 const DEEPSEEK_MODEL = process.env.DEEPSEEK_MODEL || "deepseek-v4-pro";
 const DEEPSEEK_BASE_URL = (process.env.DEEPSEEK_BASE_URL || "https://api.deepseek.com").replace(/\/$/, "");
+const DEEPSEEK_TIMEOUT_MS = Number(process.env.DEEPSEEK_TIMEOUT_MS || 240000);
 
 const SYSTEM_PROMPT = `
 你是中文教育/社科论文“投稿前标题门诊”专家。
@@ -30,10 +31,7 @@ module.exports = async function handler(req, res) {
   if (validation) return sendJson(res, 400, { error: validation });
 
   if (!process.env.DEEPSEEK_API_KEY) {
-    return sendJson(res, 200, {
-      ...fallbackOptimize(input),
-      meta: { mode: "fallback", reason: "DEEPSEEK_API_KEY is not configured" }
-    });
+    return sendJson(res, 503, { error: "DeepSeek API key is not configured" });
   }
 
   try {
@@ -43,7 +41,7 @@ module.exports = async function handler(req, res) {
       meta: { mode: "api", provider: "deepseek", model: DEEPSEEK_MODEL }
     });
   } catch (error) {
-    return sendJson(res, 502, {
+    return sendJson(res, 504, {
       error: sanitizeErrorMessage(error),
       provider: "deepseek",
       model: DEEPSEEK_MODEL
@@ -53,8 +51,11 @@ module.exports = async function handler(req, res) {
 
 async function optimizeWithDeepSeek(input) {
   const expertRules = await loadExpertRules();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), DEEPSEEK_TIMEOUT_MS);
   const response = await fetch(`${DEEPSEEK_BASE_URL}/chat/completions`, {
     method: "POST",
+    signal: controller.signal,
     headers: {
       Authorization: `Bearer ${process.env.DEEPSEEK_API_KEY}`,
       "Content-Type": "application/json"
@@ -71,8 +72,9 @@ async function optimizeWithDeepSeek(input) {
             title: stringOr(input.title, ""),
             abstract: stringOr(input.abstract, ""),
             intro: stringOr(input.intro, ""),
-            fullText: stringOr(input.fullText, "").slice(0, 45000),
+            fullText: stringOr(input.fullText, ""),
             outline: normalizeOutline(input.outline),
+            instruction: "必须通读 fullText，并在专家规则约束下修改大标题和各级小标题。只能依据全文已有信息判断研究对象、问题、场景、方法和贡献；不得虚构全文未出现的信息。",
             outputSchema: {
               profile: { object: "", scene: "", method: "", academicPivot: "" },
               diagnosis: ["最多3条"],
@@ -90,9 +92,10 @@ async function optimizeWithDeepSeek(input) {
           })
         }
       ],
-      temperature: 0.35
+      temperature: 0.25,
+      max_tokens: 1800
     })
-  });
+  }).finally(() => clearTimeout(timeout));
 
   const payload = await response.json().catch(() => null);
   if (!response.ok) {
@@ -111,7 +114,7 @@ async function optimizeWithDeepSeek(input) {
 async function loadExpertRules() {
   try {
     const content = await fs.readFile(path.join(ROOT, "expert-methodology.md"), "utf8");
-    return content.trim().slice(0, 30000);
+    return content.trim();
   } catch {
     return "仅使用内置规则：唯一题眼、提升格局、避免做法化标题、标题层级成组命名。";
   }

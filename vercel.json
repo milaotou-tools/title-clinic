@@ -8,7 +8,7 @@
   ],
   "functions": {
     "api/optimize-title.js": {
-      "maxDuration": 60
+      "maxDuration": 300
     }
   }
 }

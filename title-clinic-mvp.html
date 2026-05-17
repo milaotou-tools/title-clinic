@@ -832,9 +832,7 @@
           ? "已生成本地规则版。若要专家规则效果，请确认服务端 API 可用。"
           : "已生成新版标题结构。红色部分为改动。");
       } catch (error) {
-        const fallback = localOptimize(input, originalOutline);
-        renderResult(fallback, input);
-        setStatus(`API 调用失败，已展示本地规则版：${error.message}`);
+        setStatus(`AI 服务调用失败：${error.message}。本次没有使用本地规则版，请稍后重试。`);
       } finally {
         el.generate.disabled = false;
       }
@@ -1342,11 +1340,9 @@
           ? "已生成本地规则版。若要专家规则效果，请确认服务端 API 可用。"
           : "已生成新版本标题结构。红色部分为改动。");
       } catch (error) {
-        bumpProgress(90, "API 失败，切换本地规则版");
-        const fallback = localOptimize(input, originalOutline);
-        renderResult(fallback, input);
-        finishProgress("已显示本地规则版");
-        setStatus(`API 调用失败，已展现本地规则版：${error.message}`);
+        bumpProgress(100, "AI 服务失败");
+        finishProgress("AI 服务失败");
+        setStatus(`AI 服务调用失败：${error.message}。本次没有使用本地规则版，请稍后重试。`);
       } finally {
         el.generate.disabled = false;
       }
