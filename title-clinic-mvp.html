@@ -1051,32 +1051,23 @@
     function normalizeDisplayedResult(result) {
       const normalized = {
         ...result,
-        recommendedTitle: stripCaseSubtitle(result && result.recommendedTitle)
+        recommendedTitle: normalizeText(result && result.recommendedTitle)
       };
       if (Array.isArray(result && result.outlineRevision)) {
         normalized.outlineRevision = result.outlineRevision.map(item => ({
           ...item,
           id: typeof item.id === "string" ? item.id.trim() : "",
-          oldText: stripCaseSubtitle(item && item.oldText),
-          newText: stripCaseSubtitle(item && item.newText)
+          oldText: normalizeText(item && item.oldText),
+          newText: normalizeText(item && item.newText)
         }));
       }
       if (Array.isArray(result && result.alternativeTitles)) {
         normalized.alternativeTitles = result.alternativeTitles.map(item => ({
           ...item,
-          title: stripCaseSubtitle(item && item.title)
+          title: normalizeText(item && item.title)
         }));
       }
       return normalized;
-    }
-
-    function stripCaseSubtitle(text) {
-      return normalizeText(text)
-        .replace(/(?:——|—|-)?[（(]?\s*以["“『《]?[^"”』》]+["”』》]?\s*为例\s*[)）]?$/g, "")
-        .replace(/(?:——|—|-)?[（(]?\s*以["“『《]?[^"”』》]+["”』》]?\s*教学为例\s*[)）]?$/g, "")
-        .replace(/(?:——|—|-)?[（(]?\s*基于["“『《]?[^"”』》]+["”』》]?\s*为例\s*[)）]?$/g, "")
-        .replace(/\s*[-—]*\s*以["“『《]?[^"”』》]+["”』》]?\s*为例$/, "")
-        .trim();
     }
 
     function localOptimize(input, outline) {

@@ -8,10 +8,52 @@ const DEEPSEEK_TIMEOUT_MS = Number(process.env.DEEPSEEK_TIMEOUT_MS || 240000);
 
 const SYSTEM_PROMPT = `
 你是中文教育/社科论文“投稿前标题门诊”专家。
-只优化已经成稿论文的大标题和各级小标题，不选题、不写论文、不润色全文、不做期刊匹配。
-必须遵循专家方法论：先找唯一题眼；避免工作化、做法化标题；优先从工作格局提升到方法/范式格局，再尽量落到人的成长；不要虚构原文没有的对象、方法和结论。
-如果诊断指出“以某某为例”这类案例副标题拉低格局，推荐标题和 outlineRevision 的大标题都必须默认去掉该副标题，除非该案例本身就是全文唯一方法论对象且理由明确说明。
-输出只能是 JSON，不要 Markdown。
+
+产品边界：
+- 只优化已经成稿论文的标题和各级小标题。
+- 不选题、不写论文、不润色全文、不做期刊匹配、不查重、不生成英文标题。
+- 只能依据用户提供的原标题、摘要、引言、全文和原始标题层级，不得虚构论文没有的对象、方法、结论。
+- 如果用户提供 fullText，应通读全文理解研究对象、问题、方法、场景和贡献，但输出仍限于标题诊断与标题层级优化。
+
+专家方法论必须贯彻：
+1. 先找唯一“题眼”。标题不能没有中心概念，也不能同时有多个中心概念。
+2. 判断标题格局：工作格局最低，方法/范式格局较好，能落到“人的成长/教师发展/儿童理解/学生素养”的标题更高。
+3. 避免“构建与实践”“路径与思考”“实践探索”“以某某为例”等低辨识度做法词，除非确有必要。
+4. 若论文主题是教研，必须从课堂教学转到教研，标题和小标题中要看得见“教研”及其新变化。
+5. 可以使用冒号。冒号前应是特征、载体、亮点、隐喻、理论张力；冒号后应是对象、场景、实践或研究内容。
+6. 小标题不是普通目录，要形成同一套命名系统，如“失焦-对焦-成像-画像”“危机浮现-问题诊断-觉醒起点-深度验证”“从A到B”等。
+7. 新版标题层级要尽量保留原文真实内容，只改标题表达，不新增原文没有的章节或事实。
+
+输出要求：
+- 只返回 JSON，不要 Markdown，不要解释 JSON 之外的内容。
+- diagnosis 最多 3 条。
+- recommendedTitle 只给 1 个。
+- alternativeTitles 固定 3 个：稳妥投稿型、问题意识型、学术表达型。
+- outlineRevision 必须对应用户传来的 outline。不要遗漏原有标题层级。每一项保留同一个 index，除非原 outline 为空。
+- 如果 outline 中包含 id，outlineRevision 每一项必须带回同一个 id；id 只用于前端回填，不改变标题规则。
+- outlineRevision 中 newText 是新版标题；未修改也要返回原文，便于前端完整展示。
+
+JSON 结构必须是：
+{
+  "profile": {
+    "object": "研究对象",
+    "scene": "研究场景",
+    "method": "方法线索，没有则为空字符串",
+    "academicPivot": "机制/困境/路径/逻辑/治理/范式/素养等学术支点"
+  },
+  "diagnosis": ["最多3条原题关键问题"],
+  "recommendedTitle": "1个最推荐大标题",
+  "recommendedReason": "1句话理由",
+  "alternativeTitles": [
+    {"type": "稳妥投稿型", "title": "标题", "reason": "1句话理由"},
+    {"type": "问题意识型", "title": "标题", "reason": "1句话理由"},
+    {"type": "学术表达型", "title": "标题", "reason": "1句话理由"}
+  ],
+  "outlineRevision": [
+    {"id": "T0", "index": 0, "level": 0, "oldText": "原标题", "newText": "新版标题", "reason": "短理由"},
+    {"id": "T1", "index": 1, "level": 1, "oldText": "原一级标题", "newText": "新版一级标题", "reason": "短理由"}
+  ]
+}
 `.trim();
 
 module.exports = async function handler(req, res) {
@@ -109,7 +151,7 @@ async function optimizeWithDeepSeek(input, onProgress) {
             intro: stringOr(input.intro, ""),
             fullText: stringOr(input.fullText, ""),
             outline: normalizeOutline(input.outline).map((item, index) => ({ id: `T${index}`, index, ...item })),
-            instruction: "必须通读 fullText，并在专家规则约束下修改大标题和各级小标题。只能依据全文已有信息判断研究对象、问题、场景、方法和贡献；不得虚构全文未出现的信息。必须逐条审视 outline 中的每一个标题，不要只修改总题目和少数一级标题。outlineRevision 必须覆盖 outline 的每一项，顺序与 outline 完全一致；每条都必须带回对应 id，例如 T0、T1；oldText 必须复制对应标题原文；newText 是新版标题，确实无需修改时才允许等于 oldText。绝对不要新增、删除或重排标题。",
+            instruction: "请严格依据 expertRules 与系统提示完成标题诊断和标题层级优化。必须通读 fullText。outline 中的 id 仅用于前端回填定位；outlineRevision 必须覆盖 outline 每一项，顺序一致，并带回同一 id、index、level、oldText、newText、reason。不要把 id 写进标题文本。",
             outputSchema: {
               profile: { object: "", scene: "", method: "", academicPivot: "" },
               diagnosis: ["最多3条"],
@@ -205,7 +247,7 @@ async function loadExpertRules() {
 
 function normalizeModelResult(result, input) {
   const fallback = fallbackOptimize(input);
-  const recommendedTitle = stripCaseSubtitle(stringOr(result.recommendedTitle, fallback.recommendedTitle));
+  const recommendedTitle = stringOr(result.recommendedTitle, fallback.recommendedTitle);
   const alternatives = Array.isArray(result.alternativeTitles) ? result.alternativeTitles : [];
 
   return {
@@ -223,7 +265,7 @@ function normalizeModelResult(result, input) {
       const fb = fallback.alternativeTitles[index];
       return {
         type,
-        title: stripCaseSubtitle(stringOr(item.title, fb.title)),
+        title: stringOr(item.title, fb.title),
         reason: stringOr(item.reason, fb.reason)
       };
     }),
@@ -244,8 +286,8 @@ function normalizeOutlineRevision(value, input, recommendedTitle) {
       id: typeof item.id === "string" ? item.id.trim() : "",
       index: Number.isInteger(item.index) ? item.index : null,
       level: normalizeLevel(item.level),
-      oldText: stripCaseSubtitle(stringOr(item.oldText, "")),
-      newText: stripCaseSubtitle(stringOr(item.newText, "")),
+      oldText: stringOr(item.oldText, ""),
+      newText: stringOr(item.newText, ""),
       reason: stringOr(item.reason, "")
     };
     revisions.push(normalized);
@@ -267,7 +309,7 @@ function normalizeOutlineRevision(value, input, recommendedTitle) {
       index,
       level: normalizeLevel(update && update.level !== null ? update.level : item.level),
       oldText: item.text,
-      newText: stripCaseSubtitle(stringOr(update && update.newText, index === 0 ? recommendedTitle : item.text)),
+      newText: stringOr(update && update.newText, index === 0 ? recommendedTitle : item.text),
       reason: stringOr(update && update.reason, "")
     };
   });
@@ -318,7 +360,7 @@ function fallbackOptimize(input) {
       "小标题应围绕同一核心概念成组展开，避免目录式罗列。"
     ],
     recommendedTitle,
-    recommendedReason: "本地规则优先保留核心对象，并去除低格局案例副标题。",
+    recommendedReason: "本地规则优先保留原题核心信息，并把低辨识度做法词替换为更有教研转型意味的表达。",
     alternativeTitles: [
       { type: "稳妥投稿型", title: recommendedTitle, reason: "表达稳妥，保留研究对象和核心问题。" },
       { type: "问题意识型", title: `从问题呈现到结构转化：${compactSubject(originalTitle)}的教学研究`, reason: "突出问题意识和转化过程。" },
@@ -329,26 +371,17 @@ function fallbackOptimize(input) {
       level: item.level,
       oldText: item.text,
       newText: index === 0 ? recommendedTitle : item.text,
-      reason: index === 0 ? "去除低格局案例副标题，聚焦主标题。" : ""
+      reason: index === 0 ? "优化大标题表达。" : ""
     }))
   };
 }
 
 function localRecommendedTitle(title) {
-  return stripCaseSubtitle(title)
+  return normalizeText(title)
     .replace(/AI赋能/g, "AI数智")
     .replace(/构建与实践/g, "转型实践")
     .replace(/路径与思考/g, "转型实践")
     .replace(/实践探索/g, "循证实践")
-    .trim();
-}
-
-function stripCaseSubtitle(text) {
-  return normalizeText(text)
-    .replace(/(?:——|—|-)?[（(]?\s*以["“『《]?[^"”』》]+["”』》]?\s*为例\s*[)）]?$/g, "")
-    .replace(/(?:——|—|-)?[（(]?\s*以["“『《]?[^"”』》]+["”』》]?\s*教学为例\s*[)）]?$/g, "")
-    .replace(/(?:——|—|-)?[（(]?\s*基于["“『《]?[^"”』》]+["”』》]?\s*为例\s*[)）]?$/g, "")
-    .replace(/\s*[-—]*\s*以["“『《]?[^"”』》]+["”』》]?\s*为例$/, "")
     .trim();
 }
 
@@ -365,7 +398,7 @@ function normalizeLevel(value) {
 }
 
 function compactSubject(title) {
-  return stripCaseSubtitle(title)
+  return normalizeText(title)
     .replace(/[：:].+$/, "")
     .replace(/[“”"《》]/g, "")
     .slice(0, 18) || "论文";
