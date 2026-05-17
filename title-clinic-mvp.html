@@ -959,14 +959,20 @@
     function buildNewOutline(oldOutline, recommendedTitle, revision) {
       const byIndex = new Map();
       const byOldText = new Map();
+      const revisions = [];
       for (const item of revision) {
         if (!item) continue;
+        revisions.push(item);
         if (Number.isInteger(item.index)) byIndex.set(item.index, item);
+        if (typeof item.id === "string" && /^T\d+$/.test(item.id.trim())) byIndex.set(Number(item.id.trim().slice(1)), item);
         if (item.oldText) byOldText.set(normalizeKey(item.oldText), item);
       }
 
+      const used = new Set();
       return oldOutline.map((item, index) => {
-        const update = byOldText.get(normalizeKey(item.text)) || getTrustedIndexUpdate(byIndex, oldOutline, index);
+        const update = takeUnused(byOldText.get(normalizeKey(item.text)), used)
+          || takeUnused(getTrustedIndexUpdate(byIndex, oldOutline, index), used)
+          || takeUnused(findNearbyRevision(revisions, oldOutline, index, used), used);
         const newText = update && update.newText ? update.newText : (index === 0 && recommendedTitle ? recommendedTitle : item.text);
         return {
           level: Number.isInteger(update && update.level) ? update.level : item.level,
@@ -978,9 +984,34 @@
     function getTrustedIndexUpdate(byIndex, oldOutline, index) {
       const update = byIndex.get(index);
       if (!update) return null;
+      if (typeof update.id === "string" && /^T\d+$/.test(update.id.trim()) && Number(update.id.trim().slice(1)) === index) return update;
       if (!update.oldText) return update;
       const original = oldOutline[index] && oldOutline[index].text;
       return normalizeKey(update.oldText) === normalizeKey(original) ? update : null;
+    }
+
+    function findNearbyRevision(revisions, oldOutline, index, used) {
+      const target = oldOutline[index];
+      if (!target) return null;
+      let best = null;
+      let bestScore = 0;
+      for (const item of revisions) {
+        if (!item || used.has(item) || !item.oldText) continue;
+        if (Number.isInteger(item.index) && Math.abs(item.index - index) > 3) continue;
+        if (Math.abs(clampLevel(item.level) - clampLevel(target.level)) > 1) continue;
+        const score = looseSimilarity(item.oldText, target.text);
+        if (score > bestScore) {
+          best = item;
+          bestScore = score;
+        }
+      }
+      return bestScore >= 0.42 ? best : null;
+    }
+
+    function takeUnused(item, used) {
+      if (!item || used.has(item)) return null;
+      used.add(item);
+      return item;
     }
 
     function renderDiagnosis(items) {
@@ -1025,6 +1056,7 @@
       if (Array.isArray(result && result.outlineRevision)) {
         normalized.outlineRevision = result.outlineRevision.map(item => ({
           ...item,
+          id: typeof item.id === "string" ? item.id.trim() : "",
           oldText: stripCaseSubtitle(item && item.oldText),
           newText: stripCaseSubtitle(item && item.newText)
         }));
@@ -1421,6 +1453,21 @@
 
     function normalizeKey(text) {
       return normalizeText(text).replace(/\s+/g, "");
+    }
+
+    function looseKey(text) {
+      return normalizeKey(text).replace(/[^\u4e00-\u9fa5A-Za-z0-9]/g, "");
+    }
+
+    function looseSimilarity(a, b) {
+      const left = Array.from(new Set(looseKey(a)));
+      const right = new Set(looseKey(b));
+      if (!left.length || !right.size) return 0;
+      let common = 0;
+      for (const char of left) {
+        if (right.has(char)) common++;
+      }
+      return common / Math.max(left.length, right.size);
     }
 
     function compactSubject(title) {

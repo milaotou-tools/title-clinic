@@ -108,8 +108,8 @@ async function optimizeWithDeepSeek(input, onProgress) {
             abstract: stringOr(input.abstract, ""),
             intro: stringOr(input.intro, ""),
             fullText: stringOr(input.fullText, ""),
-            outline: normalizeOutline(input.outline),
-            instruction: "必须通读 fullText，并在专家规则约束下修改大标题和各级小标题。只能依据全文已有信息判断研究对象、问题、场景、方法和贡献；不得虚构全文未出现的信息。outlineRevision 只返回确实需要修改的标题项；绝对不要重排标题；oldText 必须逐字复制 outline 中的原文；index 只能使用 outline 的 0 基序号；无法确定 index 时宁可只填 oldText。",
+            outline: normalizeOutline(input.outline).map((item, index) => ({ id: `T${index}`, index, ...item })),
+            instruction: "必须通读 fullText，并在专家规则约束下修改大标题和各级小标题。只能依据全文已有信息判断研究对象、问题、场景、方法和贡献；不得虚构全文未出现的信息。outlineRevision 只返回确实需要修改的标题项；绝对不要重排标题；每条改动必须带回 outline 中对应的 id，例如 T0、T1；oldText 必须复制对应标题原文。",
             outputSchema: {
               profile: { object: "", scene: "", method: "", academicPivot: "" },
               diagnosis: ["最多3条"],
@@ -121,7 +121,7 @@ async function optimizeWithDeepSeek(input, onProgress) {
                 { type: "学术表达型", title: "", reason: "" }
               ],
               outlineRevision: [
-                { index: 0, level: 0, oldText: "", newText: "", reason: "" }
+                { id: "T0", index: 0, level: 0, oldText: "", newText: "", reason: "" }
               ]
             }
           })
@@ -236,17 +236,21 @@ function normalizeOutlineRevision(value, input, recommendedTitle) {
   const source = Array.isArray(value) ? value : [];
   const byIndex = new Map();
   const byOldText = new Map();
+  const revisions = [];
 
   for (const item of source) {
     if (!item || typeof item !== "object") continue;
     const normalized = {
+      id: typeof item.id === "string" ? item.id.trim() : "",
       index: Number.isInteger(item.index) ? item.index : null,
       level: normalizeLevel(item.level),
       oldText: stripCaseSubtitle(stringOr(item.oldText, "")),
       newText: stripCaseSubtitle(stringOr(item.newText, "")),
       reason: stringOr(item.reason, "")
     };
+    revisions.push(normalized);
     if (normalized.index !== null) byIndex.set(normalized.index, normalized);
+    if (/^T\d+$/.test(normalized.id)) byIndex.set(Number(normalized.id.slice(1)), normalized);
     if (normalized.oldText) byOldText.set(compactKey(normalized.oldText), normalized);
   }
 
@@ -254,8 +258,11 @@ function normalizeOutlineRevision(value, input, recommendedTitle) {
     return [{ index: 0, level: 0, oldText: input.title || "", newText: recommendedTitle, reason: "优化大标题表达。" }];
   }
 
+  const used = new Set();
   return original.map((item, index) => {
-    const update = byOldText.get(compactKey(item.text)) || getTrustedIndexUpdate(byIndex, original, index);
+    const update = takeUnused(byOldText.get(compactKey(item.text)), used)
+      || takeUnused(getTrustedIndexUpdate(byIndex, original, index), used)
+      || takeUnused(findNearbyRevision(revisions, original, index, used), used);
     return {
       index,
       level: normalizeLevel(update && update.level !== null ? update.level : item.level),
@@ -269,9 +276,34 @@ function normalizeOutlineRevision(value, input, recommendedTitle) {
 function getTrustedIndexUpdate(byIndex, original, index) {
   const update = byIndex.get(index);
   if (!update) return null;
+  if (/^T\d+$/.test(update.id || "") && Number(update.id.slice(1)) === index) return update;
   if (!update.oldText) return update;
   const originalText = original[index] && original[index].text;
   return compactKey(update.oldText) === compactKey(originalText) ? update : null;
+}
+
+function findNearbyRevision(revisions, original, index, used) {
+  const target = original[index];
+  if (!target) return null;
+  let best = null;
+  let bestScore = 0;
+  for (const item of revisions) {
+    if (!item || used.has(item) || !item.oldText) continue;
+    if (item.index !== null && Math.abs(item.index - index) > 3) continue;
+    if (Math.abs(normalizeLevel(item.level) - normalizeLevel(target.level)) > 1) continue;
+    const score = looseSimilarity(item.oldText, target.text);
+    if (score > bestScore) {
+      best = item;
+      bestScore = score;
+    }
+  }
+  return bestScore >= 0.42 ? best : null;
+}
+
+function takeUnused(item, used) {
+  if (!item || used.has(item)) return null;
+  used.add(item);
+  return item;
 }
 
 function fallbackOptimize(input) {
@@ -346,6 +378,21 @@ function arrayOfStrings(value, fallback) {
 
 function compactKey(value) {
   return normalizeText(value).replace(/\s+/g, "");
+}
+
+function looseKey(value) {
+  return compactKey(value).replace(/[^\u4e00-\u9fa5A-Za-z0-9]/g, "");
+}
+
+function looseSimilarity(a, b) {
+  const left = Array.from(new Set(looseKey(a)));
+  const right = new Set(looseKey(b));
+  if (!left.length || !right.size) return 0;
+  let common = 0;
+  for (const char of left) {
+    if (right.has(char)) common++;
+  }
+  return common / Math.max(left.length, right.size);
 }
 
 function normalizeText(value) {
