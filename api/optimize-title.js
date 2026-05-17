@@ -109,7 +109,7 @@ async function optimizeWithDeepSeek(input, onProgress) {
             intro: stringOr(input.intro, ""),
             fullText: stringOr(input.fullText, ""),
             outline: normalizeOutline(input.outline),
-            instruction: "必须通读 fullText，并在专家规则约束下修改大标题和各级小标题。只能依据全文已有信息判断研究对象、问题、场景、方法和贡献；不得虚构全文未出现的信息。",
+            instruction: "必须通读 fullText，并在专家规则约束下修改大标题和各级小标题。只能依据全文已有信息判断研究对象、问题、场景、方法和贡献；不得虚构全文未出现的信息。outlineRevision 只返回确实需要修改的标题项；绝对不要重排标题；oldText 必须逐字复制 outline 中的原文；index 只能使用 outline 的 0 基序号；无法确定 index 时宁可只填 oldText。",
             outputSchema: {
               profile: { object: "", scene: "", method: "", academicPivot: "" },
               diagnosis: ["最多3条"],
@@ -255,7 +255,7 @@ function normalizeOutlineRevision(value, input, recommendedTitle) {
   }
 
   return original.map((item, index) => {
-    const update = byIndex.get(index) || byOldText.get(compactKey(item.text));
+    const update = byOldText.get(compactKey(item.text)) || getTrustedIndexUpdate(byIndex, original, index);
     return {
       index,
       level: normalizeLevel(update && update.level !== null ? update.level : item.level),
@@ -264,6 +264,14 @@ function normalizeOutlineRevision(value, input, recommendedTitle) {
       reason: stringOr(update && update.reason, "")
     };
   });
+}
+
+function getTrustedIndexUpdate(byIndex, original, index) {
+  const update = byIndex.get(index);
+  if (!update) return null;
+  if (!update.oldText) return update;
+  const originalText = original[index] && original[index].text;
+  return compactKey(update.oldText) === compactKey(originalText) ? update : null;
 }
 
 function fallbackOptimize(input) {

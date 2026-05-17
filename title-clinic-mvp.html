@@ -966,13 +966,21 @@
       }
 
       return oldOutline.map((item, index) => {
-        const update = byIndex.get(index) || byOldText.get(normalizeKey(item.text));
+        const update = byOldText.get(normalizeKey(item.text)) || getTrustedIndexUpdate(byIndex, oldOutline, index);
         const newText = update && update.newText ? update.newText : (index === 0 && recommendedTitle ? recommendedTitle : item.text);
         return {
           level: Number.isInteger(update && update.level) ? update.level : item.level,
           text: normalizeText(newText)
         };
       });
+    }
+
+    function getTrustedIndexUpdate(byIndex, oldOutline, index) {
+      const update = byIndex.get(index);
+      if (!update) return null;
+      if (!update.oldText) return update;
+      const original = oldOutline[index] && oldOutline[index].text;
+      return normalizeKey(update.oldText) === normalizeKey(original) ? update : null;
     }
 
     function renderDiagnosis(items) {
