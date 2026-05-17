@@ -1160,6 +1160,7 @@
 
     function detectHeadingLevel(line) {
       if (isPlainDataLine(line)) return null;
+      if (isLikelyTableOrMetricLine(line)) return null;
       if (/^(引子|尾声|危机浮现|问题诊断|觉醒起点|深度验证|制度重构|理论升华|价值坚守|失焦|对焦|成像|画像|困惑|审视|建构|实践|特征|结语|价值回归)[：:]/.test(line)) return 1;
       if (/^[一二三四五六七八九十]+[、.．]/.test(line)) return 1;
       if (/^（[一二三四五六七八九十]+）/.test(line)) return 2;
@@ -1181,6 +1182,16 @@
       if (/^[+-]?\d+(\.\d+)?(?:%|％|分|分钟|min|小时|次|项|条|分数|分点)$/.test(clean)) return true;
       if (/^\d+\.\d+\.\d+$/.test(clean)) return true;
       if (/^[\d.]+(?:分|分钟|次|项|条|%|％)$/.test(clean)) return true;
+      return false;
+    }
+
+    function isLikelyTableOrMetricLine(line) {
+      const clean = String(line || "").replace(/\s+/g, "");
+      if (!clean) return true;
+      if (/^\d+(?:\.\d+)+$/.test(clean)) return true;
+      if (/^[A-Za-z]+[=-][A-Za-z0-9+\-*/=（）()]+$/.test(clean)) return true;
+      if (/[①②③④⑤⑥⑦⑧⑨⑩]/.test(clean) && /\d/.test(clean) && clean.length <= 34) return true;
+      if (/[=＋+\-−×*/]/.test(clean) && /\d/.test(clean) && clean.length <= 42) return true;
       return false;
     }
 
@@ -1271,6 +1282,7 @@
 
     function xmlToPlainText(xml) {
       return xml
+        .replace(/<w:tbl[\s\S]*?<\/w:tbl>/g, "\n")
         .replace(/<w:tab\/>/g, "\t")
         .replace(/<w:br\/>/g, "\n")
         .replace(/<\/w:p>/g, "\n")
