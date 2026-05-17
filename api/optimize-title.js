@@ -109,7 +109,7 @@ async function optimizeWithDeepSeek(input, onProgress) {
             intro: stringOr(input.intro, ""),
             fullText: stringOr(input.fullText, ""),
             outline: normalizeOutline(input.outline).map((item, index) => ({ id: `T${index}`, index, ...item })),
-            instruction: "必须通读 fullText，并在专家规则约束下修改大标题和各级小标题。只能依据全文已有信息判断研究对象、问题、场景、方法和贡献；不得虚构全文未出现的信息。outlineRevision 只返回确实需要修改的标题项；绝对不要重排标题；每条改动必须带回 outline 中对应的 id，例如 T0、T1；oldText 必须复制对应标题原文。",
+            instruction: "必须通读 fullText，并在专家规则约束下修改大标题和各级小标题。只能依据全文已有信息判断研究对象、问题、场景、方法和贡献；不得虚构全文未出现的信息。必须逐条审视 outline 中的每一个标题，不要只修改总题目和少数一级标题。outlineRevision 必须覆盖 outline 的每一项，顺序与 outline 完全一致；每条都必须带回对应 id，例如 T0、T1；oldText 必须复制对应标题原文；newText 是新版标题，确实无需修改时才允许等于 oldText。绝对不要新增、删除或重排标题。",
             outputSchema: {
               profile: { object: "", scene: "", method: "", academicPivot: "" },
               diagnosis: ["最多3条"],
@@ -128,7 +128,7 @@ async function optimizeWithDeepSeek(input, onProgress) {
         }
       ],
       temperature: 0.25,
-      max_tokens: 8192,
+      max_tokens: 12000,
       stream: true
     })
   }).finally(() => clearTimeout(timeout));
