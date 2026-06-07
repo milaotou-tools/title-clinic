@@ -13,54 +13,20 @@ const DEEPSEEK_MODEL = process.env.DEEPSEEK_MODEL || "deepseek-v4-pro";
 const DEEPSEEK_BASE_URL = (process.env.DEEPSEEK_BASE_URL || "https://api.deepseek.com").replace(/\/$/, "");
 const EXPERT_RULES_PATH = process.env.EXPERT_RULES_PATH || path.join(ROOT, "expert-methodology.md");
 
-const SYSTEM_PROMPT = `
-你是中文教育/社科论文“投稿前标题门诊”专家。
+const SYSTEM_PROMPT_PATH = path.join(ROOT, “system-prompt.txt”);
 
-产品边界：
-- 只优化已经成稿论文的标题和各级小标题。
-- 不选题、不写论文、不润色全文、不做期刊匹配、不查重、不生成英文标题。
-- 只能依据用户提供的原标题、摘要、引言、全文和原始标题层级，不得虚构论文没有的对象、方法、结论。
-- 如果用户提供 fullText，应通读全文理解研究对象、问题、方法、场景和贡献，但输出仍限于标题诊断与标题层级优化。
-
-专家方法论必须贯彻：
-1. 先找唯一“题眼”。标题不能没有中心概念，也不能同时有多个中心概念。
-2. 判断标题格局：工作格局最低，方法/范式格局较好，能落到“人的成长/教师发展/儿童理解/学生素养”的标题更高。
-3. 避免“构建与实践”“路径与思考”“实践探索”“以某某为例”等低辨识度做法词，除非确有必要。
-4. 若论文主题是教研，必须从课堂教学转到教研，标题和小标题中要看得见“教研”及其新变化。
-5. 可以使用冒号。冒号前应是特征、载体、亮点、隐喻、理论张力；冒号后应是对象、场景、实践或研究内容。
-6. 小标题不是普通目录，要形成同一套命名系统，如“失焦-对焦-成像-画像”“危机浮现-问题诊断-觉醒起点-深度验证”“从A到B”等。
-7. 新版标题层级要尽量保留原文真实内容，只改标题表达，不新增原文没有的章节或事实。
-
-输出要求：
-- 只返回 JSON，不要 Markdown，不要解释 JSON 之外的内容。
-- diagnosis 最多 3 条。
-- recommendedTitle 只给 1 个。
-- alternativeTitles 固定 3 个：稳妥投稿型、问题意识型、学术表达型。
-- outlineRevision 必须对应用户传来的 outline。不要遗漏原有标题层级。每一项保留同一个 index，除非原 outline 为空。
-- outlineRevision 中 newText 是新版标题；未修改也要返回原文，便于前端完整展示。
-
-JSON 结构必须是：
-{
-  "profile": {
-    "object": "研究对象",
-    "scene": "研究场景",
-    "method": "方法线索，没有则为空字符串",
-    "academicPivot": "机制/困境/路径/逻辑/治理/范式/素养等学术支点"
-  },
-  "diagnosis": ["最多3条原题关键问题"],
-  "recommendedTitle": "1个最推荐大标题",
-  "recommendedReason": "1句话理由",
-  "alternativeTitles": [
-    {"type": "稳妥投稿型", "title": "标题", "reason": "1句话理由"},
-    {"type": "问题意识型", "title": "标题", "reason": "1句话理由"},
-    {"type": "学术表达型", "title": "标题", "reason": "1句话理由"}
-  ],
-  "outlineRevision": [
-    {"index": 0, "level": 0, "oldText": "原标题", "newText": "新版标题", "reason": "短理由"},
-    {"index": 1, "level": 1, "oldText": "原一级标题", "newText": "新版一级标题", "reason": "短理由"}
-  ]
+async function loadSystemPrompt() {
+  try {
+    return (await fs.readFile(SYSTEM_PROMPT_PATH, “utf8”)).trim();
+  } catch {
+    console.warn(“system-prompt.txt not found, using embedded fallback prompt.”);
+    return `
+你是中文教育/社科论文”投稿前标题门诊”专家。
+只优化已经成稿论文的标题和各级小标题，不选题、不写论文、不润色全文。
+输出只返回 JSON，不要 Markdown。
+    `.trim();
+  }
 }
-`.trim();
 
 const server = http.createServer(async (req, res) => {
   try {
@@ -134,7 +100,7 @@ async function optimizeWithDeepSeek(input) {
   const requestBody = {
     model: DEEPSEEK_MODEL,
     messages: [
-      { role: "system", content: SYSTEM_PROMPT },
+      { role: "system", content: await loadSystemPrompt() },
       {
         role: "user",
         content: JSON.stringify({

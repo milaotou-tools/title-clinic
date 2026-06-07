@@ -6,4 +6,6 @@ node_modules/
 *.docx
 expert-sources/
 
-.vercel
+# Core prompts — keep out of public repo
+system-prompt.txt
+expert-methodology.md
