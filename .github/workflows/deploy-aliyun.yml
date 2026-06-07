@@ -123,6 +123,29 @@ jobs:
           if [ -d /www/server/nginx/proxy_cache_dir ]; then
             find /www/server/nginx/proxy_cache_dir -type f -delete 2>/dev/null && echo "Nginx cache cleared"
           fi
+          # Ensure 8084 server block exists in main nginx conf (BT Panel suspend may remove it)
+          if [ ! -f /www/server/panel/vhost/nginx/0.0.0.0_8084.conf ]; then
+            cat > /www/server/panel/vhost/nginx/0.0.0.0_8084.conf << "BLOCK"
+server
+{
+    listen 8084;
+    server_name 0.0.0.0_8084;
+    root /www/wwwroot/title-clinic;
+    location / {
+        proxy_pass http://127.0.0.1:3006;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+    access_log /www/wwwlogs/0.0.0.0_8084.log;
+    error_log /www/wwwlogs/0.0.0.0_8084.error.log;
+}
+BLOCK
+            echo "Created 0.0.0.0_8084.conf"
+          fi
+
+          nginx -t 2>&1
           nginx -s reload 2>/dev/null && echo "Nginx reloaded OK" || echo "Nginx reload skipped"
 
           echo "Deploy done"
