@@ -97,20 +97,18 @@ jobs:
 
           if [ ! -f "$PROXY_FILE" ]; then
             mkdir -p "$(dirname "$PROXY_FILE")"
-            cat > "$PROXY_FILE" << 'NGINX'
-server {
-    listen 8084;
-    server_name title.we-teach.cn;
-    location / {
-        proxy_pass http://127.0.0.1:3006;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-    access_log /www/wwwlogs/title.we-teach.cn.log;
-}
-NGINX
+            echo "server {" > "$PROXY_FILE"
+            echo "    listen 8084;" >> "$PROXY_FILE"
+            echo "    server_name title.we-teach.cn;" >> "$PROXY_FILE"
+            echo "    location / {" >> "$PROXY_FILE"
+            echo "        proxy_pass http://127.0.0.1:3006;" >> "$PROXY_FILE"
+            echo "        proxy_set_header Host \$host;" >> "$PROXY_FILE"
+            echo "        proxy_set_header X-Real-IP \$remote_addr;" >> "$PROXY_FILE"
+            echo "        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;" >> "$PROXY_FILE"
+            echo "        proxy_set_header X-Forwarded-Proto \$scheme;" >> "$PROXY_FILE"
+            echo "    }" >> "$PROXY_FILE"
+            echo "    access_log /www/wwwlogs/title.we-teach.cn.log;" >> "$PROXY_FILE"
+            echo "}" >> "$PROXY_FILE"
             echo "Created Nginx proxy: $PROXY_FILE"
           else
             sed -i "s|proxy_pass http://127.0.0.1:[0-9][0-9]*;|proxy_pass http://127.0.0.1:3006;|g" "$PROXY_FILE"
