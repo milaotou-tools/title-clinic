@@ -13,15 +13,15 @@ const DEEPSEEK_MODEL = process.env.DEEPSEEK_MODEL || "deepseek-v4-pro";
 const DEEPSEEK_BASE_URL = (process.env.DEEPSEEK_BASE_URL || "https://api.deepseek.com").replace(/\/$/, "");
 const EXPERT_RULES_PATH = process.env.EXPERT_RULES_PATH || path.join(ROOT, "expert-methodology.md");
 
-const SYSTEM_PROMPT_PATH = path.join(ROOT, “system-prompt.txt”);
+const SYSTEM_PROMPT_PATH = path.join(ROOT, "system-prompt.txt");
 
 async function loadSystemPrompt() {
   try {
-    return (await fs.readFile(SYSTEM_PROMPT_PATH, “utf8”)).trim();
+    return (await fs.readFile(SYSTEM_PROMPT_PATH, "utf8")).trim();
   } catch {
-    console.warn(“system-prompt.txt not found, using embedded fallback prompt.”);
+    console.warn("system-prompt.txt not found, using embedded fallback prompt.");
     return `
-你是中文教育/社科论文”投稿前标题门诊”专家。
+你是中文教育/社科论文"投稿前标题门诊"专家。
 只优化已经成稿论文的标题和各级小标题，不选题、不写论文、不润色全文。
 输出只返回 JSON，不要 Markdown。
     `.trim();
@@ -241,7 +241,7 @@ function fallbackOptimize(input) {
     },
     diagnosis: [
       "原标题需要进一步明确唯一题眼，避免多个概念并列导致主从关系不清。",
-      "若标题停留在“构建与实践”“路径与思考”，容易显得工作化，缺少方法论和理论张力。",
+      "若标题停留在"构建与实践""路径与思考"，容易显得工作化，缺少方法论和理论张力。",
       "小标题应围绕同一核心概念成组展开，避免目录式罗列。"
     ],
     recommendedTitle,
@@ -254,7 +254,7 @@ function fallbackOptimize(input) {
       },
       {
         type: "问题意识型",
-        title: `从“题目像工作”到“标题像论文”：${subject}标题优化实践`,
+        title: `从"题目像工作"到"标题像论文"：${subject}标题优化实践`,
         reason: "突出原题问题和修改方向。"
       },
       {
@@ -328,7 +328,7 @@ function inferPivot(input) {
 function compactSubject(title) {
   return String(title || "")
     .replace(/[：:].+$/, "")
-    .replace(/[“”"'《》]/g, "")
+    .replace(/["""'《》]/g, "")
     .replace(/\s+/g, "")
     .slice(0, 20) || "论文";
 }
