@@ -1,0 +1,115 @@
+name: Deploy to Aliyun
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up SSH agent
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.ALIYUN_SSH_KEY }}
+
+      - name: Trust server host key
+        env:
+          ALIYUN_PORT: ${{ secrets.ALIYUN_PORT }}
+        run: |
+          SSH_PORT="${ALIYUN_PORT:-22}"
+          mkdir -p ~/.ssh
+          ssh-keyscan -p "$SSH_PORT" -H "${{ secrets.ALIYUN_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Tar and SCP source
+        env:
+          ALIYUN_PORT: ${{ secrets.ALIYUN_PORT }}
+        run: |
+          SSH_PORT="${ALIYUN_PORT:-22}"
+          USER_HOST="${{ secrets.ALIYUN_USER }}@${{ secrets.ALIYUN_HOST }}"
+
+          tar --exclude='.git' --exclude='node_modules' --exclude='.env' --exclude='expert-sources' \
+            --exclude='*.docx' --exclude='*.log' \
+            -czf /tmp/deploy.tar.gz .
+
+          scp -P "$SSH_PORT" /tmp/deploy.tar.gz "$USER_HOST:/tmp/deploy.tar.gz"
+
+      - name: Restart service on server
+        env:
+          ALIYUN_PORT: ${{ secrets.ALIYUN_PORT }}
+          DEEPSEEK_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+        run: |
+          SSH_PORT="${ALIYUN_PORT:-22}"
+          ssh -p "$SSH_PORT" "${{ secrets.ALIYUN_USER }}@${{ secrets.ALIYUN_HOST }}" '
+          set -e
+
+          # Kill old process
+          pm2 delete title-clinic 2>/dev/null || true
+          pm2 save --force
+          sleep 2
+          fuser -k 3006/tcp 2>/dev/null || true
+          sleep 2
+
+          APP_DIR=/www/wwwroot/title-clinic
+          mkdir -p "$APP_DIR"
+
+          cd "$APP_DIR"
+
+          # Extract source (preserve .env.local if exists)
+          if [ -f .env.local ]; then
+            cp .env.local /tmp/title-clinic-env-backup
+          fi
+
+          find . -maxdepth 1 ! -name . ! -name node_modules -exec rm -rf {} +
+          tar -xzf /tmp/deploy.tar.gz
+          rm /tmp/deploy.tar.gz
+
+          # Restore or create .env.local
+          if [ -f /tmp/title-clinic-env-backup ]; then
+            cp /tmp/title-clinic-env-backup .env.local
+            rm /tmp/title-clinic-env-backup
+          fi
+
+          # Always ensure latest API key
+          if [ -f .env.local ]; then
+            sed -i "s/^DEEPSEEK_API_KEY=.*/DEEPSEEK_API_KEY='"$DEEPSEEK_KEY"'/" .env.local
+          else
+            echo "DEEPSEEK_API_KEY='"$DEEPSEEK_KEY"'" > .env.local
+            echo "DEEPSEEK_MODEL=deepseek-v4-pro" >> .env.local
+            echo "DEEPSEEK_BASE_URL=https://api.deepseek.com" >> .env.local
+            echo "PORT=3006" >> .env.local
+          fi
+
+          # Start
+          pm2 start node --name title-clinic -- server.js
+          pm2 save
+
+          echo "=== PM2 status ==="
+          pm2 list
+
+          # Fix Nginx proxy for port 8084 -> 3006
+          find /www/server/panel/vhost/nginx/proxy -path "*8084*" -type f 2>/dev/null | while read f; do
+            if grep -q "proxy_pass" "$f" 2>/dev/null; then
+              echo "fixing $f"
+              sed -i "s|proxy_pass http://127.0.0.1:[0-9][0-9]*;|proxy_pass http://127.0.0.1:3006;|g" "$f"
+            fi
+          done
+          find /www/server/nginx -path "*8084*" -type f 2>/dev/null | while read f; do
+            if grep -q "proxy_pass" "$f" 2>/dev/null; then
+              echo "fixing $f"
+              sed -i "s|proxy_pass http://127.0.0.1:[0-9][0-9]*;|proxy_pass http://127.0.0.1:3006;|g" "$f"
+            fi
+          done
+
+          # Clear Nginx proxy cache and reload
+          if [ -d /www/server/nginx/proxy_cache_dir ]; then
+            find /www/server/nginx/proxy_cache_dir -type f -delete 2>/dev/null && echo "Nginx cache cleared"
+          fi
+          nginx -s reload 2>/dev/null && echo "Nginx reloaded OK" || echo "Nginx reload skipped"
+
+          echo "Deploy done"
+          '
