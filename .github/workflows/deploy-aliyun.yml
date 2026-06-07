@@ -125,23 +125,7 @@ jobs:
           fi
           # Ensure 8084 server block exists in main nginx conf (BT Panel suspend may remove it)
           if [ ! -f /www/server/panel/vhost/nginx/0.0.0.0_8084.conf ]; then
-            printf '%s\n' \
-              'server' \
-              '{' \
-              '    listen 8084;' \
-              '    server_name 0.0.0.0_8084;' \
-              '    root /www/wwwroot/title-clinic;' \
-              '    location / {' \
-              '        proxy_pass http://127.0.0.1:3006;' \
-              '        proxy_set_header Host $host;' \
-              '        proxy_set_header X-Real-IP $remote_addr;' \
-              '        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;' \
-              '        proxy_set_header X-Forwarded-Proto $scheme;' \
-              '    }' \
-              '    access_log /www/wwwlogs/0.0.0.0_8084.log;' \
-              '    error_log /www/wwwlogs/0.0.0.0_8084.error.log;' \
-              '}' \
-              > /www/server/panel/vhost/nginx/0.0.0.0_8084.conf
+            echo c2VydmVyCnsKICAgIGxpc3RlbiA4MDg0OwogICAgc2VydmVyX25hbWUgMC4wLjAuMF84MDg0OwogICAgcm9vdCAvd3d3L3d3d3Jvb3QvdGl0bGUtY2xpbmljOwogICAgbG9jYXRpb24gLyB7CiAgICAgICAgcHJveHlfcGFzcyBodHRwOi8vMTI3LjAuMC4xOjMwMDY7CiAgICAgICAgcHJveHlfc2V0X2hlYWRlciBIb3N0ICRob3N0OwogICAgICAgIHByb3h5X3NldF9oZWFkZXIgWC1SZWFsLUlQICRyZW1vdGVfYWRkcjsKICAgICAgICBwcm94eV9zZXRfaGVhZGVyIFgtRm9yd2FyZGVkLUZvciAkcHJveHlfYWRkX2ZvcndhcmRlZF9mb3I7CiAgICAgICAgcHJveHlfc2V0X2hlYWRlciBYLUZvcndhcmRlZC1Qcm90byAkc2NoZW1lOwogICAgfQogICAgYWNjZXNzX2xvZyAvd3d3L3d3d2xvZ3MvMC4wLjAuMF84MDg0LmxvZzsKICAgIGVycm9yX2xvZyAvd3d3L3d3d2xvZ3MvMC4wLjAuMF84MDg0LmVycm9yLmxvZzsKfQ== | base64 -d > /www/server/panel/vhost/nginx/0.0.0.0_8084.conf
             echo "Created 0.0.0.0_8084.conf"
           fi
 
