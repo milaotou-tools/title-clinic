@@ -12,6 +12,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Inject sensitive files from private repo
+        env:
+          SECRETS_PAT: ${{ secrets.SECRETS_REPO_PAT }}
+        run: |
+          git clone --depth 1 "https://oauth2:${SECRETS_PAT}@github.com/milaotou-tools/secrets.git" /tmp/secrets-inject
+          cp -v /tmp/secrets-inject/title-clinic/system-prompt.txt . 2>/dev/null || echo "system-prompt.txt not in secrets"
+          cp -v /tmp/secrets-inject/title-clinic/expert-methodology.md . 2>/dev/null || echo "expert-methodology.md not in secrets"
+          rm -rf /tmp/secrets-inject
+
       - name: Set up SSH agent
         uses: webfactory/ssh-agent@v0.9.0
         with:
@@ -42,6 +51,7 @@ jobs:
         env:
           ALIYUN_PORT: ${{ secrets.ALIYUN_PORT }}
           DEEPSEEK_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          SECRETS_PAT: ${{ secrets.SECRETS_REPO_PAT }}
         run: |
           SSH_PORT="${ALIYUN_PORT:-22}"
           ssh -p "$SSH_PORT" "${{ secrets.ALIYUN_USER }}@${{ secrets.ALIYUN_HOST }}" '
@@ -114,3 +124,25 @@ jobs:
 
           echo "Deploy done"
           '
+
+      - name: Sync sensitive files to private backup
+        if: success()
+        env:
+          SECRETS_PAT: ${{ secrets.SECRETS_REPO_PAT }}
+        run: |
+          git clone --depth 1 "https://oauth2:${SECRETS_PAT}@github.com/milaotou-tools/secrets.git" /tmp/secrets-backup
+          mkdir -p /tmp/secrets-backup/title-clinic
+          cp -v system-prompt.txt /tmp/secrets-backup/title-clinic/ 2>/dev/null || true
+          cp -v expert-methodology.md /tmp/secrets-backup/title-clinic/ 2>/dev/null || true
+          cd /tmp/secrets-backup
+          git config user.email "actions@github.com"
+          git config user.name "GitHub Actions"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to sync"
+          else
+            git commit -m "auto-sync title-clinic sensitive files"
+            git push origin main
+            echo "Synced to secrets repo"
+          fi
+          rm -rf /tmp/secrets-backup
