@@ -101,6 +101,9 @@ jobs:
           echo "=== PM2 status ==="
           pm2 list
 
+          echo "=== PM2 error logs ==="
+          cat /root/.pm2/logs/title-clinic-error.log 2>/dev/null | tail -20 || echo "no error log"
+
           # Fix Nginx reverse proxy for 8084 -> 3006
           PROXY_DIR="/www/server/panel/vhost/nginx/proxy"
           find "$PROXY_DIR" -path "*8084*" -type f 2>/dev/null | while read f; do
