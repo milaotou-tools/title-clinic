@@ -91,33 +91,10 @@ jobs:
           echo "=== PM2 status ==="
           pm2 list
 
-          # Create or fix Nginx reverse proxy for 8084 -> 3006
+          # Fix Nginx reverse proxy for 8084 -> 3006
           PROXY_DIR="/www/server/panel/vhost/nginx/proxy"
-          PROXY_FILE="$PROXY_DIR/0.0.0.0_8084/title-clinic.conf"
-
-          if [ ! -f "$PROXY_FILE" ]; then
-            mkdir -p "$(dirname "$PROXY_FILE")"
-            echo "server {" > "$PROXY_FILE"
-            echo "    listen 8084;" >> "$PROXY_FILE"
-            echo "    server_name title.we-teach.cn;" >> "$PROXY_FILE"
-            echo "    location / {" >> "$PROXY_FILE"
-            echo "        proxy_pass http://127.0.0.1:3006;" >> "$PROXY_FILE"
-            echo "        proxy_set_header Host \$host;" >> "$PROXY_FILE"
-            echo "        proxy_set_header X-Real-IP \$remote_addr;" >> "$PROXY_FILE"
-            echo "        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;" >> "$PROXY_FILE"
-            echo "        proxy_set_header X-Forwarded-Proto \$scheme;" >> "$PROXY_FILE"
-            echo "    }" >> "$PROXY_FILE"
-            echo "    access_log /www/wwwlogs/title.we-teach.cn.log;" >> "$PROXY_FILE"
-            echo "}" >> "$PROXY_FILE"
-            echo "Created Nginx proxy: $PROXY_FILE"
-          else
-            sed -i "s|proxy_pass http://127.0.0.1:[0-9][0-9]*;|proxy_pass http://127.0.0.1:3006;|g" "$PROXY_FILE"
-            echo "Fixed Nginx proxy: $PROXY_FILE"
-          fi
-
-          # Also check BT Panel managed proxy dirs
           find "$PROXY_DIR" -path "*8084*" -type f 2>/dev/null | while read f; do
-            if grep -q "proxy_pass" "$f" 2>/dev/null && [ "$f" != "$PROXY_FILE" ]; then
+            if grep -q "proxy_pass" "$f" 2>/dev/null; then
               echo "fixing $f"
               sed -i "s|proxy_pass http://127.0.0.1:[0-9][0-9]*;|proxy_pass http://127.0.0.1:3006;|g" "$f"
             fi
@@ -128,14 +105,6 @@ jobs:
               sed -i "s|proxy_pass http://127.0.0.1:[0-9][0-9]*;|proxy_pass http://127.0.0.1:3006;|g" "$f"
             fi
           done
-
-          # Ensure Nginx includes the proxy config
-          if ! grep -q "8084" /www/server/nginx/conf/nginx.conf 2>/dev/null; then
-            NGINX_MAIN="/www/server/nginx/conf/nginx.conf"
-            if grep -q "include.*vhost/nginx/proxy" "$NGINX_MAIN" 2>/dev/null; then
-              echo "Nginx main config already includes proxy dir"
-            fi
-          fi
 
           # Clear Nginx proxy cache and reload
           if [ -d /www/server/nginx/proxy_cache_dir ]; then
