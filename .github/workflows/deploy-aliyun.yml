@@ -125,23 +125,23 @@ jobs:
           fi
           # Ensure 8084 server block exists in main nginx conf (BT Panel suspend may remove it)
           if [ ! -f /www/server/panel/vhost/nginx/0.0.0.0_8084.conf ]; then
-            cat > /www/server/panel/vhost/nginx/0.0.0.0_8084.conf << "BLOCK"
-server
-{
-    listen 8084;
-    server_name 0.0.0.0_8084;
-    root /www/wwwroot/title-clinic;
-    location / {
-        proxy_pass http://127.0.0.1:3006;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-    access_log /www/wwwlogs/0.0.0.0_8084.log;
-    error_log /www/wwwlogs/0.0.0.0_8084.error.log;
-}
-BLOCK
+            printf '%s\n' \
+              'server' \
+              '{' \
+              '    listen 8084;' \
+              '    server_name 0.0.0.0_8084;' \
+              '    root /www/wwwroot/title-clinic;' \
+              '    location / {' \
+              '        proxy_pass http://127.0.0.1:3006;' \
+              '        proxy_set_header Host $host;' \
+              '        proxy_set_header X-Real-IP $remote_addr;' \
+              '        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;' \
+              '        proxy_set_header X-Forwarded-Proto $scheme;' \
+              '    }' \
+              '    access_log /www/wwwlogs/0.0.0.0_8084.log;' \
+              '    error_log /www/wwwlogs/0.0.0.0_8084.error.log;' \
+              '}' \
+              > /www/server/panel/vhost/nginx/0.0.0.0_8084.conf
             echo "Created 0.0.0.0_8084.conf"
           fi
 
