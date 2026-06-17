@@ -142,6 +142,14 @@ jobs:
           nginx -t 2>&1
           nginx -s reload 2>/dev/null && echo "Nginx reloaded OK" || echo "Nginx reload skipped"
 
+          echo "=== Host firewall 8084 allow ==="
+          if command -v firewall-cmd >/dev/null 2>&1; then
+            firewall-cmd --state >/dev/null 2>&1 && firewall-cmd --permanent --add-port=8084/tcp && firewall-cmd --reload || true
+          fi
+          if command -v ufw >/dev/null 2>&1; then
+            ufw allow 8084/tcp || true
+          fi
+
           echo "=== Nginx 8084 diagnostics ==="
           nginx -T 2>&1 | grep -nE "listen 8084|server_name|proxy_pass" | head -80 || true
           echo "=== Local app health ==="
@@ -159,6 +167,11 @@ jobs:
 
           echo "Deploy done"
           '
+
+      - name: Verify public URL from runner
+        run: |
+          echo "=== Runner public health check ==="
+          curl -i --max-time 20 http://${{ secrets.ALIYUN_HOST }}:8084/api/health || true
 
       - name: Sync sensitive files to private backup
         if: success()
