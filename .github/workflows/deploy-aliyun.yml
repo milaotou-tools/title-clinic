@@ -135,14 +135,19 @@ jobs:
           done
 
           # Reload Nginx without clearing cache files; batch deletion is intentionally avoided.
-          # Ensure 8084 server block exists in main nginx conf (BT Panel suspend may remove it)
-          if [ ! -f /www/server/panel/vhost/nginx/0.0.0.0_8084.conf ]; then
-            echo c2VydmVyCnsKICAgIGxpc3RlbiA4MDg0OwogICAgc2VydmVyX25hbWUgMC4wLjAuMF84MDg0OwogICAgcm9vdCAvd3d3L3d3d3Jvb3QvdGl0bGUtY2xpbmljOwogICAgbG9jYXRpb24gLyB7CiAgICAgICAgcHJveHlfcGFzcyBodHRwOi8vMTI3LjAuMC4xOjMwMDY7CiAgICAgICAgcHJveHlfc2V0X2hlYWRlciBIb3N0ICRob3N0OwogICAgICAgIHByb3h5X3NldF9oZWFkZXIgWC1SZWFsLUlQICRyZW1vdGVfYWRkcjsKICAgICAgICBwcm94eV9zZXRfaGVhZGVyIFgtRm9yd2FyZGVkLUZvciAkcHJveHlfYWRkX3hfZm9yd2FyZGVkX2ZvcjsKICAgICAgICBwcm94eV9zZXRfaGVhZGVyIFgtRm9yd2FyZGVkLVByb3RvICRzY2hlbWU7CiAgICB9CiAgICBhY2Nlc3NfbG9nIC93d3cvd3d3bG9ncy8wLjAuMC4wXzgwODQubG9nOwogICAgZXJyb3JfbG9nIC93d3cvd3d3bG9ncy8wLjAuMC4wXzgwODQuZXJyb3IubG9nOwp9Cg== | base64 -d > /www/server/panel/vhost/nginx/0.0.0.0_8084.conf
-            echo "Created 0.0.0.0_8084.conf"
-          fi
+          # Force the public 8084 entry to this app; old BT-generated blocks can leave 8084 on a stale proxy target.
+          echo c2VydmVyIHsKICAgIGxpc3RlbiA4MDg0IGRlZmF1bHRfc2VydmVyOwogICAgc2VydmVyX25hbWUgXyAxMTYuNjIuMjIwLjI1NSAwLjAuMC4wXzgwODQ7CiAgICByb290IC93d3cvd3d3cm9vdC90aXRsZS1jbGluaWM7CgogICAgbG9jYXRpb24gLyB7CiAgICAgICAgcHJveHlfcGFzcyBodHRwOi8vMTI3LjAuMC4xOjMwMDY7CiAgICAgICAgcHJveHlfaHR0cF92ZXJzaW9uIDEuMTsKICAgICAgICBwcm94eV9zZXRfaGVhZGVyIEhvc3QgJGhvc3Q7CiAgICAgICAgcHJveHlfc2V0X2hlYWRlciBYLVJlYWwtSVAgJHJlbW90ZV9hZGRyOwogICAgICAgIHByb3h5X3NldF9oZWFkZXIgWC1Gb3J3YXJkZWQtRm9yICRwcm94eV9hZGRfeF9mb3J3YXJkZWRfZm9yOwogICAgICAgIHByb3h5X3NldF9oZWFkZXIgWC1Gb3J3YXJkZWQtUHJvdG8gJHNjaGVtZTsKICAgICAgICBwcm94eV9jb25uZWN0X3RpbWVvdXQgMzBzOwogICAgICAgIHByb3h5X3NlbmRfdGltZW91dCAzMDBzOwogICAgICAgIHByb3h5X3JlYWRfdGltZW91dCAzMDBzOwogICAgfQoKICAgIGFjY2Vzc19sb2cgL3d3dy93d3dsb2dzLzAuMC4wLjBfODA4NC5sb2c7CiAgICBlcnJvcl9sb2cgL3d3dy93d3dsb2dzLzAuMC4wLjBfODA4NC5lcnJvci5sb2c7Cn0= | base64 -d > /www/server/panel/vhost/nginx/0.0.0.0_8084.conf
+          echo "Wrote forced 8084 reverse proxy config"
 
           nginx -t 2>&1
           nginx -s reload 2>/dev/null && echo "Nginx reloaded OK" || echo "Nginx reload skipped"
+
+          echo "=== Nginx 8084 diagnostics ==="
+          nginx -T 2>&1 | grep -nE "listen 8084|server_name|proxy_pass" | head -80 || true
+          echo "=== Local app health ==="
+          curl -i --max-time 15 http://127.0.0.1:3006/api/health || true
+          echo "=== Local nginx health ==="
+          curl -i --max-time 15 http://127.0.0.1:8084/api/health || true
 
           echo "Deploy done"
           '
