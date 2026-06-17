@@ -91,10 +91,27 @@ jobs:
             echo "DEEPSEEK_BASE_URL=https://api.deepseek.com" >> .env.local
             echo "PORT=3006" >> .env.local
           fi
+          if grep -q "^DEEPSEEK_MODEL=" .env.local; then
+            sed -i "s|^DEEPSEEK_MODEL=.*|DEEPSEEK_MODEL=deepseek-v4-pro|" .env.local
+          else
+            echo "DEEPSEEK_MODEL=deepseek-v4-pro" >> .env.local
+          fi
+          if grep -q "^DEEPSEEK_BASE_URL=" .env.local; then
+            sed -i "s|^DEEPSEEK_BASE_URL=.*|DEEPSEEK_BASE_URL=https://api.deepseek.com|" .env.local
+          else
+            echo "DEEPSEEK_BASE_URL=https://api.deepseek.com" >> .env.local
+          fi
+          if grep -q "^PORT=" .env.local; then
+            sed -i "s|^PORT=.*|PORT=3006|" .env.local
+          else
+            echo "PORT=3006" >> .env.local
+          fi
 
           # Start
           pm2 start node --name title-clinic -- server.js
           pm2 save
+          sleep 2
+          curl -fsS http://127.0.0.1:3006/api/health
 
           echo "=== PM2 status ==="
           pm2 list
