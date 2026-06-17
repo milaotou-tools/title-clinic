@@ -148,6 +148,14 @@ jobs:
           curl -i --max-time 15 http://127.0.0.1:3006/api/health || true
           echo "=== Local nginx health ==="
           curl -i --max-time 15 http://127.0.0.1:8084/api/health || true
+          echo "=== Public port listener ==="
+          ss -ltnp | grep -E ":3006|:8084" || true
+          echo "=== Server public-ip health ==="
+          curl -i --max-time 15 http://116.62.220.255:8084/api/health || true
+          echo "=== Nginx 8084 access log tail ==="
+          tail -40 /www/wwwlogs/0.0.0.0_8084.log 2>/dev/null || echo "no access log"
+          echo "=== Nginx 8084 error log tail ==="
+          tail -40 /www/wwwlogs/0.0.0.0_8084.error.log 2>/dev/null || echo "no error log"
 
           echo "Deploy done"
           '
