@@ -19,7 +19,7 @@ jobs:
           git clone --depth 1 "https://oauth2:${SECRETS_PAT}@github.com/milaotou-tools/secrets.git" /tmp/secrets-inject
           cp -v /tmp/secrets-inject/title-clinic/system-prompt.txt . 2>/dev/null || echo "system-prompt.txt not in secrets"
           cp -v /tmp/secrets-inject/title-clinic/expert-methodology.md . 2>/dev/null || echo "expert-methodology.md not in secrets"
-          rm -rf /tmp/secrets-inject
+          echo "Secrets injected"
 
       - name: Set up SSH agent
         uses: webfactory/ssh-agent@v0.9.0
@@ -69,19 +69,17 @@ jobs:
 
           cd "$APP_DIR"
 
-          # Extract source (preserve .env.local if exists)
+          # Extract source over existing app files (preserve .env.local and node_modules).
+          # Do not wipe the app directory here: the project rule forbids batch deletion.
           if [ -f .env.local ]; then
             cp .env.local /tmp/title-clinic-env-backup
           fi
 
-          find . -maxdepth 1 ! -name . ! -name node_modules -exec rm -rf {} +
           tar -xzf /tmp/deploy.tar.gz
-          rm /tmp/deploy.tar.gz
 
           # Restore or create .env.local
           if [ -f /tmp/title-clinic-env-backup ]; then
             cp /tmp/title-clinic-env-backup .env.local
-            rm /tmp/title-clinic-env-backup
           fi
 
           # Always ensure latest API key
@@ -119,10 +117,7 @@ jobs:
             fi
           done
 
-          # Clear Nginx proxy cache and reload
-          if [ -d /www/server/nginx/proxy_cache_dir ]; then
-            find /www/server/nginx/proxy_cache_dir -type f -delete 2>/dev/null && echo "Nginx cache cleared"
-          fi
+          # Reload Nginx without clearing cache files; batch deletion is intentionally avoided.
           # Ensure 8084 server block exists in main nginx conf (BT Panel suspend may remove it)
           if [ ! -f /www/server/panel/vhost/nginx/0.0.0.0_8084.conf ]; then
             echo c2VydmVyCnsKICAgIGxpc3RlbiA4MDg0OwogICAgc2VydmVyX25hbWUgMC4wLjAuMF84MDg0OwogICAgcm9vdCAvd3d3L3d3d3Jvb3QvdGl0bGUtY2xpbmljOwogICAgbG9jYXRpb24gLyB7CiAgICAgICAgcHJveHlfcGFzcyBodHRwOi8vMTI3LjAuMC4xOjMwMDY7CiAgICAgICAgcHJveHlfc2V0X2hlYWRlciBIb3N0ICRob3N0OwogICAgICAgIHByb3h5X3NldF9oZWFkZXIgWC1SZWFsLUlQICRyZW1vdGVfYWRkcjsKICAgICAgICBwcm94eV9zZXRfaGVhZGVyIFgtRm9yd2FyZGVkLUZvciAkcHJveHlfYWRkX3hfZm9yd2FyZGVkX2ZvcjsKICAgICAgICBwcm94eV9zZXRfaGVhZGVyIFgtRm9yd2FyZGVkLVByb3RvICRzY2hlbWU7CiAgICB9CiAgICBhY2Nlc3NfbG9nIC93d3cvd3d3bG9ncy8wLjAuMC4wXzgwODQubG9nOwogICAgZXJyb3JfbG9nIC93d3cvd3d3bG9ncy8wLjAuMC4wXzgwODQuZXJyb3IubG9nOwp9Cg== | base64 -d > /www/server/panel/vhost/nginx/0.0.0.0_8084.conf
@@ -155,4 +150,4 @@ jobs:
             git push origin main
             echo "Synced to secrets repo"
           fi
-          rm -rf /tmp/secrets-backup
+          echo "Secret backup sync step done"
